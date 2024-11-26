@@ -11,7 +11,7 @@ DT = 0.1;               % sampling time [s]
 N = 15;                 % prediction horizon
 veh_rad = 0.55;         % vehicle radius
 % gamma = 0.999;          % cbf parameter
-cbfParms = [10 ; 5]; 
+cbfParms = [5 ; 1]; 
 
 % Static Obstacle params`
 obs_rad = 0.5;
@@ -213,10 +213,11 @@ while(norm((current_state(1:3)-target_state),2) > 0.1 && mpciter < time_limit / 
     [current_time, current_state, control_horizon, u_qp] = simulateTimeStep(DT,    current_time,    current_state, u, f, obstacle, cbfParms, veh_rad, M );               % Apply the control and simulate the timestep
     
     state_history(:,mpciter+2) = current_state;
-    X0 = reshape(full(sol.x(1:6*(N+1)))',6,N+1)';   % get solution TRAJECTORY
     u_cbf_history = [u_cbf_history ; u_qp];
-    % Shift trajectory to initialize the next step
-    X0 = [X0(2:end,:);X0(end,:)];
+    u_safe_history = [u_safe_history ; control_horizon(1,:)'];
+
+    X0 = solution_history(:,:,mpciter+1);               % current state horizon     % = reshape(full(sol.x(1:6*(N+1)))',6,N+1)';   
+    X0 = [ current_state' ;  X0(3:end,:) ; X0(end,:)];   % state horizon for next step, replace mpc current state with sim current state, end state appears on last two horizon steps
     mpciter
     mpciter = mpciter + 1;
 end
@@ -225,9 +226,42 @@ ss_error = norm((current_state(1:2)-target_state(1:2)),2)
 average_mpc_time = main_loop_time/(mpciter+1)
 
 %%
-xxx = state_history(1:3,:);
-xxx1 = solution_history(:,1:3,:);
-visualiseSimulation(xxx,xxx1,[],obstacle,target_state',N,veh_rad)
+vehicle_positions = state_history(1:3,:);
+solution_horiozons = solution_history(:,1:3,:);
+visualiseSimulation(vehicle_positions, solution_horiozons, [], obstacle, target_state', N, veh_rad)
+
+
+
+
+%% Plots
+
+
+figure()
+t = tiledlayout(3, 1);
+nexttile
+plot(u_safe_history(:,1));
+nexttile
+plot(u_safe_history(:,2))
+nexttile
+plot(u_safe_history(:,3))
+
+figure()
+t2 = tiledlayout(3, 1);
+nexttile
+plot(u_cbf_history(:,1));
+nexttile
+plot(u_cbf_history(:,2))
+nexttile
+plot(u_cbf_history(:,3))
+
+
+
+
+
+
+
+
+
 
 
 
@@ -263,7 +297,7 @@ function [t_next, x0, u0, u_qp] = simulateTimeStep(tstep, t_now, x0, u, f, obsta
     x0 = full(st);
     
     t_next = t_now + tstep;
-    u0 = [u(2:size(u,1),:) ; u(size(u,1),:)];
+    u0 = [ u_safe' ; u(3:size(u,1),:) ; u(size(u,1),:)];
 end
 
 
@@ -351,7 +385,7 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,e_psn,J,CDG,M, cb
     A       =  SEP*J*m ;
     b       =  SEP*(J*m*(u_nom - CDG) + Jdot*e_vel) + 2*e_vel_x^2 + 2*e_vel_y^2 + k1*Lfh  + k2*h       ;
 
-    Aeq     = [ 0 1 0 ];     % equality constraints, set the non-existant lateral control to be zero in the qp output
+    Aeq     = [ 0 0 0 ];     % equality constraints, set the non-existant lateral control to be zero in the qp output
     beq     = 0; 
 
     u_qp   = [0;0;0];
@@ -364,13 +398,18 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,e_psn,J,CDG,M, cb
         u_qp = output;
     end
 
+    
     u_safe  = u_nom - u_qp; 
 
     u_safe(1) = max(u_safe(1),-30);
     u_safe(1) = min(u_safe(1), 30);
 
+    u_safe(2) = max(u_safe(2),-30);
+    u_safe(2) = min(u_safe(2), 30);
+
     u_safe(3) = max(u_safe(3),-10);
     u_safe(3) = min(u_safe(3), 10);
+
 
     if u_safe(2) > 0
         disp("lateral control error");
