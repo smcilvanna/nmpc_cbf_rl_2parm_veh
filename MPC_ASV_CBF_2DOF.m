@@ -208,13 +208,13 @@ while(norm((current_state(1:3)-target_state),2) > 0.1 && mpciter < time_limit / 
     solution_history(:,1:6,mpciter+1) = reshape(full(sol.x(1:6*(N+1)))',6,N+1)';  % get solution TRAJECTORY
     u_mpc_history= [u_mpc_history ; u(1,:)];
     sim_time_history(mpciter+1) = current_time;
-
-                                                                    %       tstep, t_now, x0, u, f, obstacle, cbfParms, r_veh
+    
+    % Simulate Time Step                                                    tstep, t_now,           x0,            u, f, obstacle, cbfParms, r_veh,   M
     [current_time, current_state, control_horizon, u_qp] = simulateTimeStep(DT,    current_time,    current_state, u, f, obstacle, cbfParms, veh_rad, M );               % Apply the control and simulate the timestep
     
     state_history(:,mpciter+2) = current_state;
-    u_cbf_history = [u_cbf_history ; u_qp];
-    u_safe_history = [u_safe_history ; control_horizon(1,:)'];
+    u_cbf_history = [u_cbf_history ; u_qp'];
+    u_safe_history = [u_safe_history ; control_horizon(1,:)];
 
     X0 = solution_history(:,:,mpciter+1);               % current state horizon     % = reshape(full(sol.x(1:6*(N+1)))',6,N+1)';   
     X0 = [ current_state' ;  X0(3:end,:) ; X0(end,:)];   % state horizon for next step, replace mpc current state with sim current state, end state appears on last two horizon steps
@@ -237,23 +237,26 @@ visualiseSimulation(vehicle_positions, solution_horiozons, [], obstacle, target_
 
 
 figure()
-t = tiledlayout(3, 1);
+t = tiledlayout(2, 3);
 nexttile
 plot(u_safe_history(:,1));
+subtitle("Applied Control Longitudinal")
 nexttile
 plot(u_safe_history(:,2))
+subtitle("Applied Control Lateral")
 nexttile
 plot(u_safe_history(:,3))
+subtitle("Applied Control Yaw")
 
-figure()
-t2 = tiledlayout(3, 1);
 nexttile
 plot(u_cbf_history(:,1));
+subtitle("CBF-QP Action Longitudinal")
 nexttile
 plot(u_cbf_history(:,2))
+subtitle("CBF-QP Action Lateral")
 nexttile
 plot(u_cbf_history(:,3))
-
+subtitle("CBF-QP Action Yaw")
 
 
 
@@ -401,14 +404,14 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,e_psn,J,CDG,M, cb
     
     u_safe  = u_nom - u_qp; 
 
-    u_safe(1) = max(u_safe(1),-30);
-    u_safe(1) = min(u_safe(1), 30);
-
-    u_safe(2) = max(u_safe(2),-30);
-    u_safe(2) = min(u_safe(2), 30);
-
-    u_safe(3) = max(u_safe(3),-10);
-    u_safe(3) = min(u_safe(3), 10);
+    % u_safe(1) = max(u_safe(1),-60);
+    % u_safe(1) = min(u_safe(1), 60);
+    % 
+    % u_safe(2) = max(u_safe(2),-60);
+    % u_safe(2) = min(u_safe(2), 60);
+    % 
+    % u_safe(3) = max(u_safe(3),-20);
+    % u_safe(3) = min(u_safe(3), 20);
 
 
     if u_safe(2) > 0
