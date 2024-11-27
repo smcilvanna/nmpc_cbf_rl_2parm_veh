@@ -17,67 +17,47 @@ cbfParms = [5 ; 1];
 obs_rad = 0.5;
 veh_start = [0, 0, deg2rad(45)]';
 [obstacle, goal] = setupObstacleScenario(obs_rad,veh_rad,veh_start);    % static obstacle definintion
+
+goal = [ 10 , 12 , deg2rad(15)]';
+
 n_obs =0;                % number of obstacles
 
 x = SX.sym('x');        y = SX.sym('y');        yaw = SX.sym('yaw');
-v_x = SX.sym('v_x');    v_y = SX.sym('v_y');    v_yaw = SX.sym('v_yaw'); 
+% v_x = SX.sym('v_x');    v_y = SX.sym('v_y');    v_yaw = SX.sym('v_yaw'); 
 
-states = [x ; y ; yaw ;  v_x ; v_y ; v_yaw ]; 
+states = [  x   ; 
+            y   ; 
+            yaw ]; 
 n_states = length(states);
 n_pos_ref = length(states(1:3));
 
-tau_x = SX.sym('tau_x');    tau_y = SX.sym('tau_y');    tau_yaw = SX.sym('tau_yaw');
-controls = [tau_x;tau_y;tau_yaw];
+v = SX.sym('v');    
+w = SX.sym('w');
+controls = [v ; w];
 n_controls = length(controls);
 
-M = [       25.800, 0,          0;
-            0,      24.6612,    0;
-            0,      0,          2.7600];
-
-C = zeros(3);
-D = zeros(3);
-Cr = [      0,                              0,         -24.6612*v_y     ; 
-            0,                              0,          25.8*v_x        ; 
-            24.6612*v_y + 1.0948*v_yaw,    -25.8*v_x,   0               ];
-
-Dr = [      0.7225 + 1.3274*abs(v_x) + 5.8664*v_x^2,    0,                                              0                                           ;
-            0,                                          0.8612 + 36.2823*abs(v_y) + 8.05*abs(v_yaw),    0.845*abs(v_y) + 3.45*abs(v_yaw) - 0.1079   ; 
-            0,                                         -0.1025 - 5.0437*abs(v_y) - 0.13*abs(v_yaw),     0.845*abs(v_y) + 3.45*abs(v_yaw) - 0.1079   ];
-
-case_CD = 0;    
-
-switch case_CD
-    case 1
-        C = Cr;
-    case 2
-        D = Dr;
-    case 3
-        C = Cr;
-        D = Dr;
-end
-
-J_n = [     cos(yaw),  -sin(yaw),       0   ;
-            sin(yaw),   cos(yaw),       0   ;
-            0,          0,              1   ];
-
-dyn = [ J_n*states(4:6)                                 ;   % pos_dot = x1_dot = J*vel
-        inv(M)*(controls-C*states(4:6)-D*states(4:6))   ];  % vel_dot = x2_dot = tau - C*vel - D*vel
+dyn = [ v*cos(yaw)  ;
+        v*sin(yaw)  ;
+        w           ];  % vel_dot = x2_dot = tau - C*vel - D*vel
 
 f = Function('f',{states,controls},{dyn}); % f is symbolic representation of the system dynamics
 
 T = SX.sym('T', n_controls, N);         % 3xN Decision variables (tau) for N horizon steps
 P = SX.sym('P', n_states + n_pos_ref);  % 9x1 Parameters [initial state ; target state]
 X = SX.sym('X', n_states, (N+1));       % 6xN+1 System states initial then N horizon steps
+S = SX.sym('s',N,1);                    %% Slack variable
+
 J = 0;                                  % Empty Objective Function
 g = [];                                 % Empty Constraints Vector
+
 Qx = diag([10 10 1]);                   % Horizon steps position error weighing matrix
-Qv = diag([10 10 1]);                   % Horizon steps velocity error Weighing matrix
-R = diag([1 0 1]);                      % Horizon steps control effort Weighing matrix
-Q = 10^5*diag([1 1 1]);                 % Terminal state position error weight matrix
+% Qv = diag([10 10 1]);                   % Horizon steps velocity error Weighing matrix
+R = diag([5 0.1]);                      % Horizon steps control effort Weighing matrix
+Q = 10^3*diag([1 1 1]);                 % Terminal state position error weight matrix
 
 st = X(:,1); % Initial State
 
-g = [g;st-P(1:6)]; % Initial Condition Constraints
+g = [g;st-P(1:3)]; % Initial Condition Constraints
 
 for k = 1:N
     st = X(:,k);    % vehicle states at each horizon step
@@ -85,18 +65,21 @@ for k = 1:N
 
     % append objective function at each horizon step
     %        (veh_pos - target pos)       
-    J = J + (st(1:3)-P(7:9))'*Qx*(st(1:3)-P(7:9)) + (st(4:6)-P(4:6))'*Qv*(st(4:6)-P(4:6)) + con'*R*con; % calculate obj
+    J = J + (st(1:3)-P(4:6))'*Qx*(st(1:3)-P(4:6)) + con'*R*con; % calculate obj
     st_next = X(:,k+1);
     k1 = f(st, con);                % compute rk4 coefficients
     k2 = f(st + DT/2*k1, con);      %
     k3 = f(st + DT/2*k2, con);      %
     k4 = f(st + DT*k3, con);        %
-    st_next_RK4 = st + DT/6*(k1 +2*k2 +2*k3 +k4); % new
+    st_next_RK4 = st + DT/6*(k1 +2*k2 +2*k3 +k4); 
     g = [ g ; st_next-st_next_RK4 ]; % compute constraints % new
     %f_value = f(st,con);
     %st_next_euler = st + (DT*f_value);
     %g = [g;st_next-st_next_euler]; % compute constraints    
 end
+
+
+J = J + (X(1:3,N+1)-P(4:6))'*Q*(X(1:3,N+1)-P(4:6)); % Terminal state constraint
 
 
 % % Constraints on SO ##### OLD #####
@@ -110,7 +93,6 @@ end
 
 % CBF Constraints
 % rs = (veh_rad + obs_rad + 0.01)^2;
-
 
 % for n = 1:N      
 %     for i = 1:n_obs % for this example, only 1 obstacle
@@ -127,9 +109,23 @@ end
 %     end
 % end
 
+% W2 = 0.0001;
+% for k = 1:N     % slack variables
+%     J = J + W2*(w(k)-1)^2; 
+% end
 
-J = J + (X(1:3,N+1)-P(7:9))'*Q*(X(1:3,N+1)-P(7:9));
-OPT_variables = [reshape(X,6*(N+1),1);reshape(T,3*N,1)];
+% for k = 1:N
+%     for i = 1:n_SO
+%        h = (X(1:2,k)-[SO_init(i,1);SO_init(i,2)])'*(X(1:2,k)-[SO_init(i,1);SO_init(i,2)])-(rob_diameter/2 + SO_init(i,3))^2;
+%        h_next = (X(1:2,k+1)-[SO_init(i,1);SO_init(i,2)])'*(X(1:2,k+1)-[SO_init(i,1);SO_init(i,2)])-(rob_diameter/2 + SO_init(i,3))^2;                   
+%        g = [g; h_next-w(k)*(1-garma)*h];%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%      % g = [g; h_next-(1-garma)*h];
+% 
+%     end
+% end
+
+
+OPT_variables = [reshape(X,3*(N+1),1);reshape(T,2*N,1)];
 
 nlp_prob = struct('f', J, 'x', OPT_variables, 'g', g, 'p', P);
 
@@ -143,36 +139,33 @@ opts.ipopt.acceptable_obj_change_tol = 1e-6;
 solver = nlpsol('solver', 'ipopt', nlp_prob,opts);
 
 args = struct;
-% constraint for dynamic model
-args.lbg(1:6*(N+1)) = 0;  % Equality constraints
-args.ubg(1:6*(N+1)) = 0;  % Equality constraints
-%constraints for SO 
-args.lbg(6*(N+1)+1 : 6*(N+1)+n_obs*N) = 0;
-args.ubg(6*(N+1)+1 : 6*(N+1)+n_obs*N) = inf; 
 
-args.lbx(1:6:6*(N+1),1) = -10; %state x lower bound
-args.ubx(1:6:6*(N+1),1) = 30; %state x upper bound
-args.lbx(2:6:6*(N+1),1) = -10; %state y lower bound
-args.ubx(2:6:6*(N+1),1) = 30; %state y upper bound
-args.lbx(3:6:6*(N+1),1) = -inf; %state yaw lower bound
-args.ubx(3:6:6*(N+1),1) = inf; %state yaw upper bound
-args.lbx(4:6:6*(N+1),1) = -3; %state vx lower bound
-args.ubx(4:6:6*(N+1),1) = 3; %state vx upper bound
-args.lbx(5:6:6*(N+1),1) = -3; %state vy lower bound
-args.ubx(5:6:6*(N+1),1) = 3; %state vy upper bound
-args.lbx(6:6:6*(N+1),1) = -1; %state vyaw lower bound
-args.ubx(6:6:6*(N+1),1) = 1; %state vyaw upper bound
+n_state = 3;
+n_ctrl = 2;
+% constraint for dynamic model
+args.lbg(1:n_state*(N+1)) = 0;  % Equality constraints
+args.ubg(1:n_state*(N+1)) = 0;  % Equality constraints
+%constraints for SO 
+% args.lbg(n_state*(N+1)+1 : n_state*(N+1)+n_obs*N) = 0;
+% args.ubg(n_state*(N+1)+1 : n_state*(N+1)+n_obs*N) = inf; 
+
+args.lbx(1:n_state:n_state*(N+1),1) = -10; %state x lower bound
+args.ubx(1:n_state:n_state*(N+1),1) = 30; %state x upper bound
+args.lbx(2:n_state:n_state*(N+1),1) = -10; %state y lower bound
+args.ubx(2:n_state:n_state*(N+1),1) = 30; %state y upper bound
+args.lbx(3:n_state:n_state*(N+1),1) = -inf; %state yaw lower bound
+args.ubx(3:n_state:n_state*(N+1),1) = inf; %state yaw upper bound
 
 min_lat = 0;
 
-args.lbx(6*(N+1)+1:3:6*(N+1)+3*N,1) = -30; %Tx lower bound
-args.ubx(6*(N+1)+1:3:6*(N+1)+3*N,1) = 30; %Tx upper bound
+args.lbx(n_state*(N+1)+1:n_ctrl:n_state*(N+1)+n_ctrl*N,1) = -3; %Tx lower bound
+args.ubx(n_state*(N+1)+1:n_ctrl:n_state*(N+1)+n_ctrl*N,1) = 3; %Tx upper bound
 
-args.lbx(6*(N+1)+2:3:6*(N+1)+3*N,1) = -min_lat; %Ty lower bound
-args.ubx(6*(N+1)+2:3:6*(N+1)+3*N,1) = min_lat; %Ty upper bound
+% args.lbx(n_state*(N+1)+2:3:n_state*(N+1)+3*N,1) = -min_lat; %Ty lower bound
+% args.ubx(n_state*(N+1)+2:3:n_state*(N+1)+3*N,1) = min_lat; %Ty upper bound
 
-args.lbx(6*(N+1)+3:3:6*(N+1)+3*N,1) = -10; %Tyaw lower bound
-args.ubx(6*(N+1)+3:3:6*(N+1)+3*N,1) = 10; %Tyaw upper bound
+args.lbx(n_state*(N+1)+n_ctrl:n_ctrl:n_state*(N+1)+n_ctrl*N,1) = -1; %Tyaw lower bound
+args.ubx(n_state*(N+1)+n_ctrl:n_ctrl:n_state*(N+1)+n_ctrl*N,1) = 1; %Tyaw upper bound
 
 %%
 % =====================================================
@@ -185,13 +178,13 @@ u_mpc_history = [];     % history of first horizon step control generated by mpc
 u_cbf_history = [];     % history of cbf action on controls
 u_safe_history = [];    % history of action applied to system
 
-current_state = [veh_start ; 0 ; 0 ; 0];        % Set condition.
+current_state = veh_start;        % Set condition.
 target_state = goal;                            % Reference posture.
 state_history(:,1) = current_state;             % append this array at each step with current state
 time_limit = 50;                                % Maximum simulation time (seconds)
 sim_time_history(1) = current_time;             % append this array at each step with sim time
 
-control_horizon = zeros(N,3);                   % Controls for N horizon steps
+control_horizon = zeros(N,2);                   % Controls for N horizon steps
 X0 = repmat(current_state,1,N+1)';              % initialization of the states decision variables
 
 
@@ -201,16 +194,16 @@ X0 = repmat(current_state,1,N+1)';              % initialization of the states d
 main_loop = tic;
 while(norm((current_state(1:3)-target_state),2) > 0.1 && mpciter < time_limit / DT)
     args.p   = [current_state;target_state];                                         % p : parameter vector 9x1 [initial state ; target state]
-    args.x0  = [reshape(X0',6*(N+1),1);reshape(control_horizon',3*N,1)];     % initial value of the optimization variables
+    args.x0  = [reshape(X0',3*(N+1),1);reshape(control_horizon',2*N,1)];     % initial value of the optimization variables
     sol = solver('x0', args.x0, 'lbx', args.lbx, 'ubx', args.ubx, 'lbg', args.lbg, 'ubg', args.ubg,'p',args.p);
-    u = reshape(full(sol.x(6*(N+1)+1:end))',3,N)';                  % get controls only from the solution
+    u = reshape(full(sol.x(3*(N+1)+1:end))',2,N)';                  % get controls only from the solution
 
-    solution_history(:,1:6,mpciter+1) = reshape(full(sol.x(1:6*(N+1)))',6,N+1)';  % get solution TRAJECTORY
+    solution_history(:,1:3,mpciter+1) = reshape(full(sol.x(1:3*(N+1)))',3,N+1)';  % get solution TRAJECTORY
     u_mpc_history= [u_mpc_history ; u(1,:)];
     sim_time_history(mpciter+1) = current_time;
     
-    % Simulate Time Step                                                    tstep, t_now,           x0,            u, f, obstacle, cbfParms, r_veh,   M
-    [current_time, current_state, control_horizon, u_qp] = simulateTimeStep(DT,    current_time,    current_state, u, f, obstacle, cbfParms, veh_rad, M );               % Apply the control and simulate the timestep
+    % Simulate Time Step                                                    tstep, t_now,           x0,            u, f, obstacle, cbfParms, r_veh
+    [current_time, current_state, control_horizon, u_qp] = simulateTimeStep(DT,    current_time,    current_state, u, f, obstacle, cbfParms, veh_rad );               % Apply the control and simulate the timestep
     
     state_history(:,mpciter+2) = current_state;
     u_cbf_history = [u_cbf_history ; u_qp'];
@@ -288,19 +281,19 @@ function [t_next, x0, u0, u_qp] = simulateTimeStep(tstep, t_now, x0, u, f, obsta
     u_nom = u(1,:)';                          % 3x1
     %f_value = f(st,con);
 
-    CDG = zeros(3,1);
+    % CDG = zeros(3,1);
     yaw = st(3);
-    J   = [     cos(yaw),  -sin(yaw),       0   ;
-                sin(yaw),   cos(yaw),       0   ;
-                0,          0,              1   ];
+    % J   = [     cos(yaw),  -sin(yaw),       0   ;
+    %             sin(yaw),   cos(yaw),       0   ;
+    %             0,          0,              1   ];
 
-    [u_safe, u_qp] = controlBarrierFunction(t_now, obstacle, u_nom, earth_position, J, CDG, M, cbfParms, r_veh, tstep)   ;
+    % [u_safe, u_qp] = controlBarrierFunction(t_now, obstacle, u_nom, earth_position, J, CDG, M, cbfParms, r_veh, tstep)   ;
 
-    st = st + (tstep*f(st,u_safe));
+    st = st + (tstep*f(st,u_nom));
     x0 = full(st);
-    
+    u_qp = [0 ;0];
     t_next = t_now + tstep;
-    u0 = [ u_safe' ; u(3:size(u,1),:) ; u(size(u,1),:)];
+    u0 = [ u_nom' ; u(3:size(u,1),:) ; u(size(u,1),:)];
 end
 
 
