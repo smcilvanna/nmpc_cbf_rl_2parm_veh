@@ -228,7 +228,7 @@ average_mpc_time = main_loop_time/(mpciter+1)
 %%
 vehicle_positions = state_history(1:3,:);
 solution_horiozons = solution_history(:,1:3,:);
-visualiseSimulation(vehicle_positions, solution_horiozons, [], obstacle, target_state', N, veh_rad)
+visualiseSimulation(vehicle_positions, solution_horiozons, [], obstacle, target_state', N, veh_rad, DT)
 
 
 
@@ -388,7 +388,7 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,e_psn,J,CDG,M, cb
     A       =  SEP*J*m ;
     b       =  SEP*(J*m*(u_nom - CDG) + Jdot*e_vel) + 2*e_vel_x^2 + 2*e_vel_y^2 + k1*Lfh  + k2*h       ;
 
-    Aeq     = [ 0 0 0 ];     % equality constraints, set the non-existant lateral control to be zero in the qp output
+    Aeq     = [ 0 1 0 ];     % equality constraints, set the non-existant lateral control to be zero in the qp output
     beq     = 0; 
 
     u_qp   = [0;0;0];
@@ -401,8 +401,8 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,e_psn,J,CDG,M, cb
         u_qp = output;
     end
 
-    
     u_safe  = u_nom - u_qp; 
+
 
     % u_safe(1) = max(u_safe(1),-60);
     % u_safe(1) = min(u_safe(1), 60);
@@ -414,9 +414,9 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,e_psn,J,CDG,M, cb
     % u_safe(3) = min(u_safe(3), 20);
 
 
-    if u_safe(2) > 0
-        disp("lateral control error");
-    end
+    % if u_safe(2) > 0
+    %     disp("lateral control error");
+    % end
 
 end
 
