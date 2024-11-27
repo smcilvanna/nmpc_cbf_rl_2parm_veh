@@ -362,20 +362,36 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,e_psn,J,CDG,M, cb
     % a           = 1; %2*r_obs;      % for circular obstacle
     % b           = a;                % for circular obstacle
     
+    % Safe seperation distance parameters
     sep_x       = pos_x - obs_x;
     sep_y       = pos_y - obs_y;
-
     rs          = (r_obs + r_veh + 0.01)^2;
-    
     SEP         = [2*sep_x ; 2*sep_y ; 0 ]';
 %   S           = [2*a*Sx   2*b*Sy  ];
 %   S2          = [2*a*S2x  2*b*S2y ]; 
     
-%   Control Barrier function terms
+%   Linear Motion Control Barrier function terms
     h           = sep_x^2 + sep_y^2 - rs^2 ;
     Lfh         = 2*(sep_x)*(e_vel_x) + 2*(sep_y)*(e_vel_y); 
 %   L2fh        = 2*(sep_x)*e_acc_x + 2*(e_vel_x^2) + 2*(sep_y)*e_acc_y + 2*(e_vel_y^2)     
 %   ECBF        = L2fh*mute + k1*Lfh*mute + k2*h;
+
+    % Safe clearance parameters
+    obstacle_bearing = atan2(sep_y,sep_x);
+    veh2obs_angle = yaw - obstacle_bearing;
+    sep_centres = sqrt(sep_x^2 + sep_y^2);
+    clear_radius = r_obs + r_veh;
+    clear_obstacle_angle =  atan2(clear_radius,sep_centres);
+    sep_clear = veh2obs_angle - clear_obstacle_angle;
+
+
+    hb = sep_clear;
+    Lfhb = sep_clear*e_vel_w;
+    SC = [0 , 0, veh2obs_angle];
+    
+    %L2fhb = SC*J*m(Tnom - Tqp - CD) + e_vel_w
+
+
 
     % quadprog parameters
     H       = 2*[   1 0 0   ; ...
@@ -388,7 +404,11 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,e_psn,J,CDG,M, cb
     A       =  SEP*J*m ;
     b       =  SEP*(J*m*(u_nom - CDG) + Jdot*e_vel) + 2*e_vel_x^2 + 2*e_vel_y^2 + k1*Lfh  + k2*h       ;
 
-    Aeq     = [ 0 1 0 ];     % equality constraints, set the non-existant lateral control to be zero in the qp output
+    A       =  SC*J*m ;
+    b       =  SC*(J*m*(u_nom - CDG) + Jdot*e_vel) + e_vel_w^2 + k1*Lfhb + k2*hb ;
+
+
+    Aeq     = [ 1 1 0 ];     % equality constraints, set the non-existant lateral control to be zero in the qp output
     beq     = 0; 
 
     u_qp   = [0;0;0];
