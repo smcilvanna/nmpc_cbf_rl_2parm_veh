@@ -165,7 +165,7 @@ args.ubx(6:6:6*(N+1),1) = 1; %state vyaw upper bound
 
 min_lat = 0;
 
-args.lbx(6*(N+1)+1:3:6*(N+1)+3*N,1) = -30; %Tx lower bound
+args.lbx(6*(N+1)+1:3:6*(N+1)+3*N,1) = 0; %Tx lower bound
 args.ubx(6*(N+1)+1:3:6*(N+1)+3*N,1) = 30; %Tx upper bound
 
 args.lbx(6*(N+1)+2:3:6*(N+1)+3*N,1) = -min_lat; %Ty lower bound
@@ -188,7 +188,7 @@ u_safe_history = [];    % history of action applied to system
 current_state = [veh_start ; 0 ; 0 ; 0];        % Set condition.
 target_state = goal;                            % Reference posture.
 state_history(:,1) = current_state;             % append this array at each step with current state
-time_limit = 50;                                % Maximum simulation time (seconds)
+time_limit = 30;                                % Maximum simulation time (seconds)
 sim_time_history(1) = current_time;             % append this array at each step with sim time
 
 control_horizon = zeros(N,3);                   % Controls for N horizon steps
@@ -229,9 +229,6 @@ average_mpc_time = main_loop_time/(mpciter+1)
 vehicle_positions = state_history(1:3,:);
 solution_horiozons = solution_history(:,1:3,:);
 visualiseSimulation(vehicle_positions, solution_horiozons, [], obstacle, target_state', N, veh_rad, DT)
-
-
-
 
 %% Plots
 
@@ -366,7 +363,7 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,e_psn,J,CDG,M, cb
     sep_x       = pos_x - obs_x;
     sep_y       = pos_y - obs_y;
     rs          = (r_obs + r_veh + 0.01)^2;
-    SEP         = [2*sep_x ; 2*sep_y ; 0 ]';
+    SEP         = [2*sep_x ; 2*sep_y ; 0.2 ]';
 %   S           = [2*a*Sx   2*b*Sy  ];
 %   S2          = [2*a*S2x  2*b*S2y ]; 
     
@@ -404,11 +401,11 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,e_psn,J,CDG,M, cb
     A       =  SEP*J*m ;
     b       =  SEP*(J*m*(u_nom - CDG) + Jdot*e_vel) + 2*e_vel_x^2 + 2*e_vel_y^2 + k1*Lfh  + k2*h       ;
 
-    A       =  SC*J*m ;
-    b       =  SC*(J*m*(u_nom - CDG) + Jdot*e_vel) + e_vel_w^2 + k1*Lfhb + k2*hb ;
+    % A       =  SC*J*m ;
+    % b       =  SC*(J*m*(u_nom - CDG) + Jdot*e_vel) + e_vel_w^2 + k1*Lfhb + k2*hb ;
 
 
-    Aeq     = [ 1 1 0 ];     % equality constraints, set the non-existant lateral control to be zero in the qp output
+    Aeq     = [ 0 1 0 ];     % equality constraints, set the non-existant lateral control to be zero in the qp output
     beq     = 0; 
 
     u_qp   = [0;0;0];

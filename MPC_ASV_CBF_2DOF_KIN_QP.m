@@ -287,11 +287,18 @@ function [t_next, x0, u0, u_qp] = simulateTimeStep(tstep, t_now, x0, u, f, obsta
     %             sin(yaw),   cos(yaw),       0   ;
     %             0,          0,              1   ];
 
-    % [u_safe, u_qp] = controlBarrierFunction(t_now, obstacle, u_nom, earth_position, J, CDG, M, cbfParms, r_veh, tstep)   ;
+    [u_safe, u_qp] = controlBarrierFunction(t_now, obstacle, u_nom, earth_position, J, CDG, M, cbfParms, r_veh, tstep)   ;
 
-    st = st + (tstep*f(st,u_nom));
+    cbfEnable = 1;
+    if cbfEnable
+        u_apply = u_safe;
+    else
+        u_apply = u_nom;
+    end
+
+
+    st = st + (tstep*f(st,u));
     x0 = full(st);
-    u_qp = [0 ;0];
     t_next = t_now + tstep;
     u0 = [ u_nom' ; u(3:size(u,1),:) ; u(size(u,1),:)];
 end
@@ -303,13 +310,6 @@ end
 
 function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,e_psn,J,CDG,M, cbfParms,r_veh,tstep)
 % controlBarrierFunction Compute safe outputs for each timestep based on 
-
-    % % debug - mute output first few timesteps
-    % if t < 0.005;
-    %     mute    =0;
-    % else
-    %     mute    =1;
-    % end
 
     % Persistent Variable for derivatives
     persistent Jprev pos_prev;
@@ -324,7 +324,6 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,e_psn,J,CDG,M, cb
 
     % System states from inputs
     % Variables used in ECBF
-    m           = inv(M);
     k1          = cbfParms(1);
     k2          = cbfParms(2);
 
@@ -339,40 +338,30 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,e_psn,J,CDG,M, cb
     e_vel_w     = ( yaw   - pos_prev(3) ) / tstep ;
     pos_prev    = [ pos_x, pos_y, yaw];                  % set current position for next step previous value
     e_vel       = [ e_vel_x ; e_vel_y ; e_vel_w];     
-
-    % earth frame accelerations [eta_dot_dot]
-    % ctrl        = u_nom;
-    % earth_acc   = J*m*(ctrl - CDG) + Jdot*(Jinv*e_vel);
-    % 
-    % e_acc_x     = earth_acc(1);
-    % e_acc_y     = earth_acc(2);
-   
+  
     % Obstacle parameters
     r_obs       = obs(3);
     obs_x       = obs(1);
     obs_y       = obs(2);
-
-    % a           = 1; %2*r_obs;      % for circular obstacle
-    % b           = a;                % for circular obstacle
     
     % Safe seperation distance parameters
-    sep_x       = pos_x - obs_x;
-    sep_y       = pos_y - obs_y;
+    Cx          = pos_x - obs_x;
+    Cy          = pos_y - obs_y;
     rs          = (r_obs + r_veh + 0.01)^2;
-    SEP         = [2*sep_x ; 2*sep_y ; 0 ]';
+    SEP         = [2*Cx ; 2*Cy ; 0 ]';
 %   S           = [2*a*Sx   2*b*Sy  ];
 %   S2          = [2*a*S2x  2*b*S2y ]; 
     
 %   Linear Motion Control Barrier function terms
-    h           = sep_x^2 + sep_y^2 - rs^2 ;
-    Lfh         = 2*(sep_x)*(e_vel_x) + 2*(sep_y)*(e_vel_y); 
+    h           = Cx^2 + Cy^2 - rs^2 ;
+    Lfh         = 2*(Cx)*(e_vel_x) + 2*(Cy)*(e_vel_y); 
 %   L2fh        = 2*(sep_x)*e_acc_x + 2*(e_vel_x^2) + 2*(sep_y)*e_acc_y + 2*(e_vel_y^2)     
 %   ECBF        = L2fh*mute + k1*Lfh*mute + k2*h;
 
     % Safe clearance parameters
-    obstacle_bearing = atan2(sep_y,sep_x);
+    obstacle_bearing = atan2(Cy,Cx);
     veh2obs_angle = yaw - obstacle_bearing;
-    sep_centres = sqrt(sep_x^2 + sep_y^2);
+    sep_centres = sqrt(Cx^2 + Cy^2);
     clear_radius = r_obs + r_veh;
     clear_obstacle_angle =  atan2(clear_radius,sep_centres);
     sep_clear = veh2obs_angle - clear_obstacle_angle;
