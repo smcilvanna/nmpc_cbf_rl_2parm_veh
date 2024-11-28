@@ -18,16 +18,12 @@ obs_rad = 0.5;
 veh_start = [0, 0, deg2rad(45)]';
 [obstacle, goal] = setupObstacleScenario(obs_rad,veh_rad,veh_start);    % static obstacle definintion
 
-goal = [ 10 , 12 , deg2rad(15)]';
+% n_obs =0;                % number of obstacles
 
-n_obs =0;                % number of obstacles
-
-x = SX.sym('x');        y = SX.sym('y');        yaw = SX.sym('yaw');
-% v_x = SX.sym('v_x');    v_y = SX.sym('v_y');    v_yaw = SX.sym('v_yaw'); 
-
-states = [  x   ; 
-            y   ; 
-            yaw ]; 
+x = SX.sym('x');        
+y = SX.sym('y');        
+yaw = SX.sym('yaw');
+states = [ x ; y ; yaw ]; 
 n_states = length(states);
 n_pos_ref = length(states(1:3));
 
@@ -78,52 +74,7 @@ for k = 1:N
     %g = [g;st_next-st_next_euler]; % compute constraints    
 end
 
-
 J = J + (X(1:3,N+1)-P(4:6))'*Q*(X(1:3,N+1)-P(4:6)); % Terminal state constraint
-
-
-% % Constraints on SO ##### OLD #####
-% for k = 1:N      
-%     for i = 1:n_obs
-%         h =         ((X(1,k)-obstacle(i,1))^2         + (X(2,k)-obstacle(i,2))^2 )      - (veh_rad + obstacle(i,3))^2;
-%         h_next =    ((X(1,k+1)-obstacle(i,1))^2       + (X(2,k+1)-obstacle(i,2))^2)     - (veh_rad + obstacle(i,3))^2;
-%         g = [g ; h_next - (1-gamma)*h];
-%     end
-% end
-
-% CBF Constraints
-% rs = (veh_rad + obs_rad + 0.01)^2;
-
-% for n = 1:N      
-%     for i = 1:n_obs % for this example, only 1 obstacle
-% 
-%         sepx = X(1,n) - obstacle(i,1);
-%         sepy = X(2,n) - obstacle(i,2);
-% 
-%         h = sepx^2 + sepy^2 - rs^2;
-%         lfh = 
-% 
-% 
-% 
-%         g = [g ; h_next - (1-gamma)*h];
-%     end
-% end
-
-% W2 = 0.0001;
-% for k = 1:N     % slack variables
-%     J = J + W2*(w(k)-1)^2; 
-% end
-
-% for k = 1:N
-%     for i = 1:n_SO
-%        h = (X(1:2,k)-[SO_init(i,1);SO_init(i,2)])'*(X(1:2,k)-[SO_init(i,1);SO_init(i,2)])-(rob_diameter/2 + SO_init(i,3))^2;
-%        h_next = (X(1:2,k+1)-[SO_init(i,1);SO_init(i,2)])'*(X(1:2,k+1)-[SO_init(i,1);SO_init(i,2)])-(rob_diameter/2 + SO_init(i,3))^2;                   
-%        g = [g; h_next-w(k)*(1-garma)*h];%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%      % g = [g; h_next-(1-garma)*h];
-% 
-%     end
-% end
-
 
 OPT_variables = [reshape(X,3*(N+1),1);reshape(T,2*N,1)];
 
@@ -136,36 +87,33 @@ opts.print_time = 0;
 opts.ipopt.acceptable_tol =1e-8;
 opts.ipopt.acceptable_obj_change_tol = 1e-6;
 
-solver = nlpsol('solver', 'ipopt', nlp_prob,opts);
+solver = nlpsol('solver', 'ipopt', nlp_prob, opts);
 
 args = struct;
-
-n_state = 3;
-n_ctrl = 2;
 % constraint for dynamic model
-args.lbg(1:n_state*(N+1)) = 0;  % Equality constraints
-args.ubg(1:n_state*(N+1)) = 0;  % Equality constraints
+args.lbg(1:n_states*(N+1)) = 0;  % Equality constraints
+args.ubg(1:n_states*(N+1)) = 0;  % Equality constraints
 %constraints for SO 
 % args.lbg(n_state*(N+1)+1 : n_state*(N+1)+n_obs*N) = 0;
 % args.ubg(n_state*(N+1)+1 : n_state*(N+1)+n_obs*N) = inf; 
 
-args.lbx(1:n_state:n_state*(N+1),1) = -10; %state x lower bound
-args.ubx(1:n_state:n_state*(N+1),1) = 30; %state x upper bound
-args.lbx(2:n_state:n_state*(N+1),1) = -10; %state y lower bound
-args.ubx(2:n_state:n_state*(N+1),1) = 30; %state y upper bound
-args.lbx(3:n_state:n_state*(N+1),1) = -inf; %state yaw lower bound
-args.ubx(3:n_state:n_state*(N+1),1) = inf; %state yaw upper bound
+args.lbx(1:n_states:n_states*(N+1),1) = -10; %state x lower bound
+args.ubx(1:n_states:n_states*(N+1),1) = 30; %state x upper bound
+args.lbx(2:n_states:n_states*(N+1),1) = -10; %state y lower bound
+args.ubx(2:n_states:n_states*(N+1),1) = 30; %state y upper bound
+args.lbx(3:n_states:n_states*(N+1),1) = -inf; %state yaw lower bound
+args.ubx(3:n_states:n_states*(N+1),1) = inf; %state yaw upper bound
 
 min_lat = 0;
 
-args.lbx(n_state*(N+1)+1:n_ctrl:n_state*(N+1)+n_ctrl*N,1) = -3; %Tx lower bound
-args.ubx(n_state*(N+1)+1:n_ctrl:n_state*(N+1)+n_ctrl*N,1) = 3; %Tx upper bound
+args.lbx(n_states*(N+1)+1:n_controls:n_states*(N+1)+n_controls*N,1) = -3; %Tx lower bound
+args.ubx(n_states*(N+1)+1:n_controls:n_states*(N+1)+n_controls*N,1) = 3; %Tx upper bound
 
 % args.lbx(n_state*(N+1)+2:3:n_state*(N+1)+3*N,1) = -min_lat; %Ty lower bound
 % args.ubx(n_state*(N+1)+2:3:n_state*(N+1)+3*N,1) = min_lat; %Ty upper bound
 
-args.lbx(n_state*(N+1)+n_ctrl:n_ctrl:n_state*(N+1)+n_ctrl*N,1) = -1; %Tyaw lower bound
-args.ubx(n_state*(N+1)+n_ctrl:n_ctrl:n_state*(N+1)+n_ctrl*N,1) = 1; %Tyaw upper bound
+args.lbx(n_states*(N+1)+n_controls:n_controls:n_states*(N+1)+n_controls*N,1) = -1; %Tyaw lower bound
+args.ubx(n_states*(N+1)+n_controls:n_controls:n_states*(N+1)+n_controls*N,1) = 1; %Tyaw upper bound
 
 %%
 % =====================================================
@@ -181,7 +129,7 @@ u_safe_history = [];    % history of action applied to system
 current_state = veh_start;        % Set condition.
 target_state = goal;                            % Reference posture.
 state_history(:,1) = current_state;             % append this array at each step with current state
-time_limit = 50;                                % Maximum simulation time (seconds)
+time_limit = 30;                                % Maximum simulation time (seconds)
 sim_time_history(1) = current_time;             % append this array at each step with sim time
 
 control_horizon = zeros(N,2);                   % Controls for N horizon steps
@@ -221,34 +169,32 @@ average_mpc_time = main_loop_time/(mpciter+1)
 %%
 vehicle_positions = state_history(1:3,:);
 solution_horiozons = solution_history(:,1:3,:);
-visualiseSimulation(vehicle_positions, solution_horiozons, [], obstacle, target_state', N, veh_rad, DT)
-
-
+% visualiseSimulation(vehicle_positions, solution_horiozons, [], obstacle, target_state', N, veh_rad, DT)
 
 
 %% Plots
 
 
 figure()
-t = tiledlayout(2, 3);
+t = tiledlayout(2, 2);
 nexttile
 plot(u_safe_history(:,1));
 subtitle("Applied Control Longitudinal")
+% nexttile
+% plot(u_safe_history(:,2))
+% subtitle("Applied Control Lateral")
 nexttile
 plot(u_safe_history(:,2))
-subtitle("Applied Control Lateral")
-nexttile
-plot(u_safe_history(:,3))
 subtitle("Applied Control Yaw")
 
 nexttile
 plot(u_cbf_history(:,1));
 subtitle("CBF-QP Action Longitudinal")
 nexttile
-plot(u_cbf_history(:,2))
-subtitle("CBF-QP Action Lateral")
+% plot(u_cbf_history(:,2))
+% subtitle("CBF-QP Action Lateral")
 nexttile
-plot(u_cbf_history(:,3))
+plot(u_cbf_history(:,2))
 subtitle("CBF-QP Action Yaw")
 
 
@@ -275,19 +221,11 @@ function [obs,tgt] = setupObstacleScenario(obs_rad,veh_rad,veh_start)
     tgt = [ (obs(1) + obs_rad + after_sep*cos(veh_yaw)) , (obs(2) + obs_rad + after_sep*sin(veh_yaw)) , veh_yaw]';
 end
 
-function [t_next, x0, u0, u_qp] = simulateTimeStep(tstep, t_now, x0, u, f, obstacle, cbfParms, r_veh, M)
-    st = x0;                                % 6x1
-    earth_position = st(1:3);
-    u_nom = u(1,:)';                          % 3x1
-    %f_value = f(st,con);
-
-    % CDG = zeros(3,1);
-    yaw = st(3);
-    % J   = [     cos(yaw),  -sin(yaw),       0   ;
-    %             sin(yaw),   cos(yaw),       0   ;
-    %             0,          0,              1   ];
-
-    [u_safe, u_qp] = controlBarrierFunction(t_now, obstacle, u_nom, earth_position, J, CDG, M, cbfParms, r_veh, tstep)   ;
+function [t_next, x0, u0, u_qp] = simulateTimeStep(tstep, t_now, x0, u, f, obstacle, cbfParms, r_veh)
+    st = x0;                                
+    eta = st(1:3);
+    u_nom = u(1,:)'; 
+    [u_safe, u_qp] = controlBarrierFunction(t_now, obstacle, u_nom, eta, cbfParms, r_veh, tstep)   ;
 
     cbfEnable = 1;
     if cbfEnable
@@ -296,8 +234,7 @@ function [t_next, x0, u0, u_qp] = simulateTimeStep(tstep, t_now, x0, u, f, obsta
         u_apply = u_nom;
     end
 
-
-    st = st + (tstep*f(st,u));
+    st = st + (tstep*f(st,u_apply));
     x0 = full(st);
     t_next = t_now + tstep;
     u0 = [ u_nom' ; u(3:size(u,1),:) ; u(size(u,1),:)];
@@ -308,19 +245,19 @@ end
 
 
 
-function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta,J,CDG,M, cbfParms,r_veh,tstep)
+function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta, cbfParms, r_veh, tstep)
 % controlBarrierFunction Compute safe outputs for each timestep based on 
 
     % Persistent Variable for derivatives
-    persistent Jprev pos_prev;
-    if isempty(Jprev)
-        Jprev = J;
-        pos_prev = [0,0,0];
-    end
+    % persistent Jprev pos_prev;
+    % if isempty(Jprev)
+    %     Jprev = J;
+    %     pos_prev = [0,0,0];
+    % end
 
     % Derivative Variables
-    Jdot = (J - Jprev)/ tstep;
-    Jprev = J;
+    % Jdot = (J - Jprev)/ tstep;
+    % Jprev = J;
 
     % System states from inputs
     % Variables used in ECBF
@@ -332,12 +269,12 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta,J,CDG,M, cbfP
     pos_y       = eta(2);
     yaw         = eta(3);
             
-    % earth frame velocities [eta_dot]        
-    e_vel_x     = ( pos_x - pos_prev(1) ) / tstep ;     % calculate earth frame velocity components
-    e_vel_y     = ( pos_y - pos_prev(2) ) / tstep ; 
-    e_vel_w     = ( yaw   - pos_prev(3) ) / tstep ;
-    pos_prev    = [ pos_x, pos_y, yaw];                  % set current position for next step previous value
-    e_vel       = [ e_vel_x ; e_vel_y ; e_vel_w];     
+    % % earth frame velocities [eta_dot]        
+    % e_vel_x     = ( pos_x - pos_prev(1) ) / tstep ;     % calculate earth frame velocity components
+    % e_vel_y     = ( pos_y - pos_prev(2) ) / tstep ; 
+    % e_vel_w     = ( yaw   - pos_prev(3) ) / tstep ;
+    % pos_prev    = [ pos_x, pos_y, yaw];                  % set current position for next step previous value
+    % e_vel       = [ e_vel_x ; e_vel_y ; e_vel_w];     
   
     % Obstacle parameters
     r_obs       = obs(3);
@@ -375,14 +312,14 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta,J,CDG,M, cbfP
     f       = zeros(size(H,1),1); 
 
     % Setup A & b matrices
-    A       =  [DSEP ,  0   ;
-                0    , ASEP ];
+    A       =  [DSEP(1) ,  0   ;
+                0    , ASEP(2) ];
     
-    b       = [ h   ;
-                hh  ];
+    b       = [ h*k1    ;
+                hh*k2   ]';
 
-    Aeq     = [ 0 0 ];     % equality constraints, set the non-existant lateral control to be zero in the qp output
-    beq     = 0; 
+    Aeq     = [];     % equality constraints, set the non-existant lateral control to be zero in the qp output
+    beq     = []; 
 
     u_qp   = [0;0];
     flag = 0;
@@ -392,6 +329,8 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta,J,CDG,M, cbfP
 
     if flag == 1
         u_qp = output;
+    else
+        disp("qp error");
     end
 
     u_safe  = u_nom - u_qp; 
