@@ -11,7 +11,7 @@ DT = 0.1;               % sampling time [s]
 N = 15;                 % prediction horizon
 veh_rad = 0.55;         % vehicle radius
 % gamma = 0.999;          % cbf parameter
-cbfParms = [5 ; 1]; 
+cbfParms = [50; 0.5 ]; 
 
 % Static Obstacle params`
 obs_rad = 0.5;
@@ -166,16 +166,15 @@ main_loop_time = toc(main_loop);
 ss_error = norm((current_state(1:2)-target_state(1:2)),2)
 average_mpc_time = main_loop_time/(mpciter+1)
 
-%%
-vehicle_positions = state_history(1:3,:);
-solution_horiozons = solution_history(:,1:3,:);
-% visualiseSimulation(vehicle_positions, solution_horiozons, [], obstacle, target_state', N, veh_rad, DT)
-
 
 %% Plots
 
+%
+vehicle_positions = state_history(1:3,:);
+solution_horiozons = solution_history(:,1:3,:);
+visualiseSimulation(vehicle_positions, solution_horiozons, [], obstacle, target_state', N, veh_rad, DT)
 
-figure()
+fig2 = figure();
 t = tiledlayout(2, 2);
 nexttile
 plot(u_safe_history(:,1));
@@ -190,17 +189,13 @@ subtitle("Applied Control Yaw")
 nexttile
 plot(u_cbf_history(:,1));
 subtitle("CBF-QP Action Longitudinal")
-nexttile
+% nexttile
 % plot(u_cbf_history(:,2))
 % subtitle("CBF-QP Action Lateral")
 nexttile
 plot(u_cbf_history(:,2))
 subtitle("CBF-QP Action Yaw")
-
-
-
-
-
+hold off
 
 
 
@@ -208,19 +203,22 @@ subtitle("CBF-QP Action Yaw")
 
 
 %% LOCAL FUNCTIONS
+
+%%
 function [obs,tgt] = setupObstacleScenario(obs_rad,veh_rad,veh_start)
 % setupObstacleScenario Set position of obstacle and goal point to maintain equal seperation across different sized obstacles
     vx = veh_start(1);
     vy = veh_start(2);
     veh_yaw = veh_start(3);
-    approach_sep = 5;                                       % min distance between vehicle clearance radius and obstacle at start
-    after_sep = 5;                                          % min distance between perimiter of obstacle and goal point
+    approach_sep = 10;                                       % min distance between vehicle clearance radius and obstacle at start
+    after_sep = 10;                                          % min distance between perimiter of obstacle and goal point
     v2oCen = veh_rad + approach_sep + obs_rad;              % centre to centre distance between vehicle start and obstacle
     obs = [ (vx + v2oCen*cos(veh_yaw)) ,  (vy + v2oCen*sin(veh_yaw))  , obs_rad];
     obs(2) = obs(2) - 0.1;
     tgt = [ (obs(1) + obs_rad + after_sep*cos(veh_yaw)) , (obs(2) + obs_rad + after_sep*sin(veh_yaw)) , veh_yaw]';
 end
 
+%%
 function [t_next, x0, u0, u_qp] = simulateTimeStep(tstep, t_now, x0, u, f, obstacle, cbfParms, r_veh)
     st = x0;                                
     eta = st(1:3);
@@ -282,9 +280,9 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta, cbfParms, r_
     obs_y       = obs(2);
     
     % Safe seperation distance parameters
-    Cx          = pos_x - obs_x;
-    Cy          = pos_y - obs_y;
-    rs          = (r_obs + r_veh + 0.01)^2;
+    Cx          = obs_x - pos_x;
+    Cy          = obs_y - pos_y;
+    rs          = (r_obs + r_veh + 0.00)^2;
     DSEP        = [2*(Cx*cos(yaw) + Cy*sin(yaw)) , 0 ];
     
 %   Linear Motion Control Barrier function terms
@@ -296,7 +294,9 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta, cbfParms, r_
     obstacle_bearing        = atan2(Cy,Cx);
     veh2obs_angle           = yaw - obstacle_bearing;
     sep_centres             = sqrt(Cx^2 + Cy^2);
-    clear_radius            = r_obs + r_veh;
+
+    dw = min(1/sep_centres,r_obs*2);
+    clear_radius            = (r_obs + r_veh)*dw;
     clear_obstacle_angle    = atan2(clear_radius,sep_centres);
     
     
@@ -316,8 +316,10 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta, cbfParms, r_
                 0    , ASEP(2) ];
     
     b       = [ h*k1    ;
-                hh*k2   ]';
+                hh*k2   ];
 
+    % A = A(2,:);
+    % b = b(2,:);
     Aeq     = [];     % equality constraints, set the non-existant lateral control to be zero in the qp output
     beq     = []; 
 
@@ -351,53 +353,3 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta, cbfParms, r_
     % end
 
 end
-
-
-
-%% OLD
-
-
-% %%
-% x_ref = repmat(xs,1,length(xxx));
-% error = abs(x_ref-xxx);
-% figure(1)
-% subplot(3,2,1)
-% plot(t,x_ref(1,1:length(t))),hold on,grid on,plot(t,xx(1,1:length(t)))
-% title('Tracking performance in x'),xlabel('Time (s)'),ylabel('x (m)')
-% subplot(3,2,2)
-% plot(t,error(1,1:length(t))),hold on,grid on,
-% title('Tracking error in x'),xlabel('Time (s)'),ylabel('Error x (m)')
-% subplot(3,2,3)
-% plot(t,x_ref(2,1:length(t))),hold on,grid on,plot(t,xx(2,1:length(t)))
-% title('Tracking performance in y'),xlabel('Time (s)'),ylabel('y (m)')
-% subplot(3,2,4)
-% plot(t,error(2,1:length(t))),hold on,grid on,
-% title('Tracking error in y'),xlabel('Time (s)'),ylabel('Error y (m)')
-% subplot(3,2,5)
-% plot(t,x_ref(3,1:length(t))),hold on,grid on,plot(t,xx(3,1:length(t)))
-% title('Tracking performance in yaw'),xlabel('Time (s)'),ylabel('yaw (rad)')
-% subplot(3,2,6)
-% plot(t,error(3,1:length(t))),hold on,grid on,
-% title('Tracking error in yaw'),xlabel('Time (s)'),ylabel('Error yaw (rad)')
-% 
-% figure(2)
-% subplot(2,2,1)
-% plot(t,u_cl(1:length(t),1)),hold on,grid on,
-% title('Control signal in x'),xlabel('Time (s)'),ylabel('tau-x (Nm)')
-% subplot(2,2,2)
-% plot(t,u_cl(1:length(t),2)),hold on,grid on,
-% title('Control signal in y'),xlabel('Time (s)'),ylabel('tau-y (Nm)')
-% subplot(2,2,3)
-% plot(t,u_cl(1:length(t),2)),hold on,grid on,
-% title('Control signal in yaw'),xlabel('Time (s)'),ylabel('tau-yaw (Nm)')
-% 
-% figure(3)
-% subplot(2,2,1)
-% plot(t,xx(4,1:length(t))),hold on,grid on,
-% title('Velocity x'),xlabel('Time (s)'),ylabel('v-x (m/s)')
-% subplot(2,2,2)
-% plot(t,xx(5,1:length(t))),hold on,grid on,
-% title('Velocity y'),xlabel('Time (s)'),ylabel('v-y (m/s)')
-% subplot(2,2,3)
-% plot(t,xx(6,1:length(t))),hold on,grid on,
-% title('Velocity yaw'),xlabel('Time (s)'),ylabel('v-yaw (rad/s)')

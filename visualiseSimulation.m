@@ -1,7 +1,7 @@
 function visualiseSimulation(vehicle_positions, solution_horiozons, o_cl, obstacle, x_ref, N, veh_radius, timeStep)
 %% Figure setup
-figure(100)
-fig = gcf; %Current figure handle
+fig = figure(100)
+% fig = gcf; %Current figure handle
 fig.Color = 'w';
 fig.Units = 'normalized';
 fig.OuterPosition = [0 0 1 1];
