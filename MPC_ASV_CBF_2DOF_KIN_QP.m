@@ -308,7 +308,7 @@ end
 
 
 
-function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,e_psn,J,CDG,M, cbfParms,r_veh,tstep)
+function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta,J,CDG,M, cbfParms,r_veh,tstep)
 % controlBarrierFunction Compute safe outputs for each timestep based on 
 
     % Persistent Variable for derivatives
@@ -328,9 +328,9 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,e_psn,J,CDG,M, cb
     k2          = cbfParms(2);
 
     % earth frame positions
-    pos_x       = e_psn(1);
-    pos_y       = e_psn(2);
-    yaw         = e_psn(3);
+    pos_x       = eta(1);
+    pos_y       = eta(2);
+    yaw         = eta(3);
             
     % earth frame velocities [eta_dot]        
     e_vel_x     = ( pos_x - pos_prev(1) ) / tstep ;     % calculate earth frame velocity components
@@ -348,52 +348,43 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,e_psn,J,CDG,M, cb
     Cx          = pos_x - obs_x;
     Cy          = pos_y - obs_y;
     rs          = (r_obs + r_veh + 0.01)^2;
-    SEP         = [2*Cx ; 2*Cy ; 0 ]';
-%   S           = [2*a*Sx   2*b*Sy  ];
-%   S2          = [2*a*S2x  2*b*S2y ]; 
+    DSEP        = [2*(Cx*cos(yaw) + Cy*sin(yaw)) , 0 ];
     
 %   Linear Motion Control Barrier function terms
     h           = Cx^2 + Cy^2 - rs^2 ;
-    Lfh         = 2*(Cx)*(e_vel_x) + 2*(Cy)*(e_vel_y); 
-%   L2fh        = 2*(sep_x)*e_acc_x + 2*(e_vel_x^2) + 2*(sep_y)*e_acc_y + 2*(e_vel_y^2)     
-%   ECBF        = L2fh*mute + k1*Lfh*mute + k2*h;
+  % Lfh         = 2*Cx*v*cos(yaw) + 2*Cy*v*sin(yaw) ;   
+%   ECBF        = Lfh(eta,u) + k1*h(eta) >= 0;
 
     % Safe clearance parameters
-    obstacle_bearing = atan2(Cy,Cx);
-    veh2obs_angle = yaw - obstacle_bearing;
-    sep_centres = sqrt(Cx^2 + Cy^2);
-    clear_radius = r_obs + r_veh;
-    clear_obstacle_angle =  atan2(clear_radius,sep_centres);
-    sep_clear = veh2obs_angle - clear_obstacle_angle;
-
-
-    hb = sep_clear;
-    Lfhb = sep_clear*e_vel_w;
-    SC = [0 , 0, veh2obs_angle];
+    obstacle_bearing        = atan2(Cy,Cx);
+    veh2obs_angle           = yaw - obstacle_bearing;
+    sep_centres             = sqrt(Cx^2 + Cy^2);
+    clear_radius            = r_obs + r_veh;
+    clear_obstacle_angle    = atan2(clear_radius,sep_centres);
     
-    %L2fhb = SC*J*m(Tnom - Tqp - CD) + e_vel_w
-
-
-
+    
+    hh      = veh2obs_angle^2 - clear_obstacle_angle^2;
+  % Lfhh    = 2*veh2obs_angle * w ;
+  % ECBF    = Lfh(eta,u) + k2*h(eta) >= 0 ;  
+    ASEP    = [0 , 2*veh2obs_angle];
+    
     % quadprog parameters
-    H       = 2*[   1 0 0   ; ...
-                    0 1 0   ; ... 
-                    0 0 1   ] ;
-        
-    f       = [0;0;0]; 
+    H       = 2*[   1 0     ; 
+                    0 1 ]   ;
+
+    f       = zeros(size(H,1),1); 
 
     % Setup A & b matrices
-    A       =  SEP*J*m ;
-    b       =  SEP*(J*m*(u_nom - CDG) + Jdot*e_vel) + 2*e_vel_x^2 + 2*e_vel_y^2 + k1*Lfh  + k2*h       ;
+    A       =  [DSEP ,  0   ;
+                0    , ASEP ];
+    
+    b       = [ h   ;
+                hh  ];
 
-    A       =  SC*J*m ;
-    b       =  SC*(J*m*(u_nom - CDG) + Jdot*e_vel) + e_vel_w^2 + k1*Lfhb + k2*hb ;
-
-
-    Aeq     = [ 1 1 0 ];     % equality constraints, set the non-existant lateral control to be zero in the qp output
+    Aeq     = [ 0 0 ];     % equality constraints, set the non-existant lateral control to be zero in the qp output
     beq     = 0; 
 
-    u_qp   = [0;0;0];
+    u_qp   = [0;0];
     flag = 0;
     coder.extrinsic('quadprog');
     options = optimset('Display','off');
