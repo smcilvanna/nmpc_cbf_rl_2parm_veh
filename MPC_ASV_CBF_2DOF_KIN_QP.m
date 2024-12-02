@@ -11,7 +11,7 @@ DT = 0.1;               % sampling time [s]
 N = 20;                 % prediction horizon
 veh_rad = 0.55;         % vehicle radius
 % gamma = 0.999;          % cbf parameter
-cbfParms = [1 ; 10 ]; 
+cbfParms = [0.5 ; 0.5 ; 1]; 
 
 % Static Obstacle params`
 obs_rad = 0.5;
@@ -161,6 +161,15 @@ while(norm((current_state(1:3)-target_state),2) > 0.1 && mpciter < time_limit / 
     X0 = [ current_state' ;  X0(3:end,:) ; X0(end,:)];   % state horizon for next step, replace mpc current state with sim current state, end state appears on last two horizon steps
     mpciter
     mpciter = mpciter + 1;
+
+    % if mod(current_time,0.2) == 0
+    %     plotCurrentState(current_state, obstacle, current_time);
+    %     continue;
+    % end
+    % if current_time > 2.2
+    %     plotCurrentState(current_state, obstacle, current_time);
+    % end
+
 end
 main_loop_time = toc(main_loop);
 ss_error = norm((current_state(1:2)-target_state(1:2)),2)
@@ -175,13 +184,10 @@ solution_horiozons = solution_history(:,1:3,:);
 visualiseSimulation(vehicle_positions, solution_horiozons, [], obstacle, target_state', N, veh_rad, DT)
 %%
 fig2 = figure();
-t = tiledlayout(2, 2);
+t = tiledlayout(3, 2);
 nexttile
 plot(u_safe_history(:,1));
 subtitle("Applied Control Longitudinal")
-% nexttile
-% plot(u_safe_history(:,2))
-% subtitle("Applied Control Lateral")
 nexttile
 plot(u_safe_history(:,2))
 subtitle("Applied Control Yaw")
@@ -189,17 +195,22 @@ subtitle("Applied Control Yaw")
 nexttile
 plot(u_cbf_history(:,1));
 subtitle("CBF-QP Action Longitudinal")
-% nexttile
-% plot(u_cbf_history(:,2))
-% subtitle("CBF-QP Action Lateral")
 nexttile
 plot(u_cbf_history(:,2))
 subtitle("CBF-QP Action Yaw")
 hold off
 
+nexttile
+plot(u_mpc_history(:,1));
+subtitle("MPC Action Longitudinal")
+nexttile
+plot(u_mpc_history(:,2))
+subtitle("MPC Action Yaw")
+hold off
 
+%%
 
-
+plotCurrentState(current_state, obstacle, current_time);
 
 
 %% LOCAL FUNCTIONS
@@ -246,17 +257,6 @@ end
 function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta, cbfParms, r_veh, tstep)
 % controlBarrierFunction Compute safe outputs for each timestep based on 
 
-    % Persistent Variable for derivatives
-    % persistent Jprev pos_prev;
-    % if isempty(Jprev)
-    %     Jprev = J;
-    %     pos_prev = [0,0,0];
-    % end
-
-    % Derivative Variables
-    % Jdot = (J - Jprev)/ tstep;
-    % Jprev = J;
-
     % System states from inputs
     % Variables used in ECBF
     k1          = cbfParms(1);
@@ -266,39 +266,35 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta, cbfParms, r_
     pos_x       = eta(1);
     pos_y       = eta(2);
     yaw         = eta(3);
-            
-    % % earth frame velocities [eta_dot]        
-    % e_vel_x     = ( pos_x - pos_prev(1) ) / tstep ;     % calculate earth frame velocity components
-    % e_vel_y     = ( pos_y - pos_prev(2) ) / tstep ; 
-    % e_vel_w     = ( yaw   - pos_prev(3) ) / tstep ;
-    % pos_prev    = [ pos_x, pos_y, yaw];                  % set current position for next step previous value
-    % e_vel       = [ e_vel_x ; e_vel_y ; e_vel_w];     
-  
+
     % Obstacle parameters
     r_obs       = obs(3);
     obs_x       = obs(1);
     obs_y       = obs(2);
     
     % Safe seperation distance parameters
-    Cx          = obs_x - pos_x;
-    Cy          = obs_y - pos_y;
+    sep_x          = obs_x - pos_x;
+    sep_y          = obs_y - pos_y;
     rs          = (r_obs + r_veh + 0.00)^2;
-    DSEP        = [2*(Cx*cos(yaw) + Cy*sin(yaw)) , 0 ];
+    DSEP        = [2*(sep_x*cos(yaw) + sep_y*sin(yaw)) , 0 ];
     
 %   Linear Motion Control Barrier function terms
-    h           = Cx^2 + Cy^2 - rs^2 ;
+    h           = sep_x^2 + sep_y^2 - rs^2 ;
   % Lfh         = 2*Cx*v*cos(yaw) + 2*Cy*v*sin(yaw) ;   
 %   ECBF        = Lfh(eta,u) + k1*h(eta) >= 0;
 
     % Safe clearance parameters
-    obstacle_bearing        = atan2(Cy,Cx);
+    obstacle_bearing        = atan2(sep_y,sep_x);
     veh2obs_angle           = wrapToPi(yaw - obstacle_bearing);
-    sep_centres             = sqrt(Cx^2 + Cy^2);
-
-    dw = 1; %min(1/sep_centres,r_obs*2);
-    clear_radius            = (r_obs + r_veh)*dw;
+    sep_centres             = sqrt(sep_x^2 + sep_y^2);
+    sep_safe                = sep_centres - r_obs - r_veh;
+    r_cbf = cbfParms(3);
+    d = 0.01*(1/r_obs);
+    d2 = sep_safe - r_cbf;
+    c = max(d,d2);
+    dw = 1/c; %min(1/sep_centres,r_obs*2);
+    clear_radius            = r_obs*dw + r_veh;
     clear_obstacle_angle    = atan2(clear_radius,sep_centres);
-    
     
     hh      = veh2obs_angle^2 - clear_obstacle_angle^2;
   % Lfhh    = 2*veh2obs_angle * w ;
@@ -315,7 +311,7 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta, cbfParms, r_
     A       =  [DSEP(1) ,  0   ;
                 0    , ASEP(2) ];
     
-    b       = [ h*k1  + 2*(Cx*cos(yaw) + Cy*sin(yaw))*u_nom(1)  ;
+    b       = [ h*k1  + 2*(sep_x*cos(yaw) + sep_y*sin(yaw))*u_nom(1)  ;
                 hh*k2   + 2*veh2obs_angle*u_nom(2)              ];
 
     % A = A(2,:);
@@ -348,4 +344,119 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta, cbfParms, r_
     %     disp("lateral control error");
     % end
 
+end
+
+%%
+
+function plotCurrentState(vehicle, obstacle,time)
+%% plotCurrentState - Plots current state of vehicle and obstacle
+
+    %Vehicle State
+    yaw = vehicle(3);
+    veh_radius = 0.55;
+    vpos = [vehicle(1),vehicle(2)];
+    yline = [50*cos(yaw), 50*sin(yaw)];
+    
+    % Obstacle State
+    orad = obstacle(3);
+    obs_x = obstacle(1);
+    obs_y = obstacle(2);
+    opos = [obs_x , obs_y];
+    obs_bearing = atan2((obs_y - vpos(2)), (obs_x - vpos(1)));
+
+    % Safe clearance parameters
+    veh2obs_angle           = wrapToPi(yaw - obs_bearing);
+    cen_sep                 = sqrt((obs_x - vpos(1))^2 + (obs_y - vpos(2))^2);
+    dw = 1; %min(1/cen_sep,orad*2);
+    clear_radius            = (orad + veh_radius)*dw;
+    clear_obstacle_angle    = atan2(clear_radius,cen_sep);
+    clear_rad_ang = wrapToPi(obs_bearing + deg2rad(90)*sign(veh2obs_angle));
+    
+    alpha = veh2obs_angle;
+    beta  = clear_obstacle_angle;
+    
+    h = alpha^2 - beta^2;
+    
+    if h >= 0
+        htxt = "SAFE";
+    else
+        htxt = "DANGER";
+    end
+    
+    stxt = sprintf("h(eta) : %.04f  | %s  [%.03f]",h,htxt,time);
+    fig = figure();
+   
+    plotCircle(vpos,veh_radius,':','k');  % Plot vehicle outline
+    plotCircle(opos,orad,'-','r');  % Plot obstacle
+    hold on
+    
+    % Obstacle vehicle center line
+    plot([vpos(1), obs_x],[vpos(2),obs_y],'k:');
+    
+    % Plot vehicle heading line
+    plot([vpos(1),yline(1)], [vpos(2),yline(2)], 'b:');
+    
+    % Plot vehicle yaw marker
+    yaw_marker_len = veh_radius;
+    dx = yaw_marker_len * cos(yaw);
+    dy = yaw_marker_len * sin(yaw);
+    quiver(vpos(1),vpos(2),dx,dy,0,'b',LineWidth=2,MaxHeadSize=1,DisplayName="Vehicle Yaw");
+    
+    % Plot clear rad marker
+    dx = clear_radius * cos(clear_rad_ang);
+    dy = clear_radius * sin(clear_rad_ang);
+    quiver(obs_x,obs_y,dx,dy,0,'b',LineWidth=2,MaxHeadSize=1,DisplayName="Vehicle Yaw");
+    
+    subtitle(stxt);
+    lim = 20;
+    
+    minxlim = min(vpos(1),obstacle(1)) - max(veh_radius,orad);
+    maxxlim = max(vpos(1),obstacle(1)) + max(veh_radius,orad);
+    minylim = min(vpos(2),obstacle(2)) - max(veh_radius,orad);
+    maxylim = max(vpos(2),obstacle(2)) + max(veh_radius,orad);
+
+
+    axis equal;
+    xlim([minxlim maxxlim]);
+    ylim([minylim maxylim]);
+
+    input("Press ENTER to continue...")
+    % pause(1)
+    close all;
+end
+
+%%
+
+function plotCircle(center, radius, lineStyle, color)
+    % plotCircle Plots a circle on the current figure with specified line style and color
+    %   plotCircle(center, radius, lineStyle, color) plots a circle with the specified center, radius,
+    %   line style, and color.
+    %   center - A 1x2 vector specifying the [x, y] coordinates of the circle's center.
+    %   radius - A scalar specifying the radius of the circle.
+    %   lineStyle - A character vector or string scalar specifying the line style (e.g., '-', '--').
+    %   color - A character vector or string scalar specifying the color ('r', 'g', 'b', 'k', 'gray').
+
+    % Validate inputs
+    if length(center) ~= 2
+        error('Center must be a 1x2 vector specifying [x, y] coordinates.');
+    end
+    if ~isscalar(radius) || radius <= 0
+        error('Radius must be a positive scalar.');
+    end
+    validLineStyles = {'-', '--', ':', '-.'};
+    if ~ismember(lineStyle, validLineStyles)
+        error('Invalid line style. Choose from: ''-'', ''--'', '':'' or ''-.''.');
+    end
+    validColors = {'r', 'g', 'b', 'k', 'gray'};
+    if ~ismember(color, validColors)
+        error('Invalid color. Choose from: ''r'', ''g'', ''b'', ''k'', ''gray''.');
+    end
+    
+    % Create the circle using the rectangle function
+    rectangle('Position', [center - radius, 2*radius, 2*radius], 'Curvature', [1, 1], ...
+              'EdgeColor', color, 'LineStyle', lineStyle);
+    
+    % Ensure the aspect ratio is equal to make the circle look like a circle
+    axis equal;
+    grid on; % Optional: Add some grid lines for better visualization
 end
