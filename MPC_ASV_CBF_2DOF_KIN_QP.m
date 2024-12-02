@@ -11,7 +11,7 @@ DT = 0.1;               % sampling time [s]
 N = 15;                 % prediction horizon
 veh_rad = 0.55;         % vehicle radius
 % gamma = 0.999;          % cbf parameter
-cbfParms = [50; 0.5 ]; 
+cbfParms = [10 ; 10 ]; 
 
 % Static Obstacle params`
 obs_rad = 0.5;
@@ -235,7 +235,7 @@ function [t_next, x0, u0, u_qp] = simulateTimeStep(tstep, t_now, x0, u, f, obsta
     st = st + (tstep*f(st,u_apply));
     x0 = full(st);
     t_next = t_now + tstep;
-    u0 = [ u_nom' ; u(3:size(u,1),:) ; u(size(u,1),:)];
+    u0 = [ u_apply' ; u(3:size(u,1),:) ; u(size(u,1),:)];
 end
 
 
@@ -292,10 +292,10 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta, cbfParms, r_
 
     % Safe clearance parameters
     obstacle_bearing        = atan2(Cy,Cx);
-    veh2obs_angle           = yaw - obstacle_bearing;
+    veh2obs_angle           = wrapToPi(yaw - obstacle_bearing);
     sep_centres             = sqrt(Cx^2 + Cy^2);
 
-    dw = min(1/sep_centres,r_obs*2);
+    dw = 1; %min(1/sep_centres,r_obs*2);
     clear_radius            = (r_obs + r_veh)*dw;
     clear_obstacle_angle    = atan2(clear_radius,sep_centres);
     
@@ -315,8 +315,8 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta, cbfParms, r_
     A       =  [DSEP(1) ,  0   ;
                 0    , ASEP(2) ];
     
-    b       = [ h*k1    ;
-                hh*k2   ];
+    b       = [ h*k1  + 2*(Cx*cos(yaw) + Cy*sin(yaw))*u_nom(1)  ;
+                hh*k2   + 2*veh2obs_angle*u_nom(2)              ];
 
     % A = A(2,:);
     % b = b(2,:);
@@ -338,15 +338,11 @@ function [u_safe, u_qp] = controlBarrierFunction(t, obs, u_nom,eta, cbfParms, r_
     u_safe  = u_nom - u_qp; 
 
 
-    % u_safe(1) = max(u_safe(1),-60);
-    % u_safe(1) = min(u_safe(1), 60);
-    % 
-    % u_safe(2) = max(u_safe(2),-60);
-    % u_safe(2) = min(u_safe(2), 60);
-    % 
-    % u_safe(3) = max(u_safe(3),-20);
-    % u_safe(3) = min(u_safe(3), 20);
+    u_safe(1) = max(u_safe(1),-3);
+    u_safe(1) = min(u_safe(1), 3);
 
+    u_safe(2) = max(u_safe(2),-1);
+    u_safe(2) = min(u_safe(2), 1);
 
     % if u_safe(2) > 0
     %     disp("lateral control error");
