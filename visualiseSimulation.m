@@ -1,4 +1,14 @@
-function visualiseSimulation(vehicle_positions, solution_horiozons, o_cl, obstacle, x_ref, N, veh_radius, timeStep)
+function visualiseSimulation(simdata)
+
+vehicle_positions = simdata.states(1:3,:);
+solution_horiozons = simdata.solutions(:,1:3,:);
+obstacle = simdata.obstacle;
+x_ref = simdata.target;
+N = simdata.N;
+veh_radius = simdata.vrad;
+timeStep = simdata.dt;
+
+
 %% Figure setup
 fig = figure(100)
 % fig = gcf; %Current figure handle
