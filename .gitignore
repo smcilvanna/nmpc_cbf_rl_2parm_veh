@@ -31,3 +31,6 @@ codegen/
 
 # Simulink cache files
 *.slxc
+
+# Matlab data files
+*.mat

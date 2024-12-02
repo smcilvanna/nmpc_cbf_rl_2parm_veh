@@ -53,9 +53,9 @@ if firstrun
     [solver, args, f] = createMPCKinematicSolver(DT,N);
 end
 
-k1 = [0.1 , 0.2:0.2:1 , 2:2:20];
+k1 = [ 0.05:0.05:1 , 2:2:50];
 k2 = k1;
-obs = [0.1, 0.5, 1.0, 2.0, 3.0, 4,0, 5.0];
+obs = [0.1, 0.5, 1.0, 2.0, 3.0, 4,0, 5.0, 6.0];
 testList = combinations(k1,k2,obs);
 alldata = [];
 
@@ -64,10 +64,10 @@ for i = 1:size(testList,1)
     obs_rad = testList.obs(i);
     simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT);
     alldata = [alldata ; simdata];
-    if mod(i,100)==0
-        save("./241202_sweep1.mat","alldata");
+    if mod(i,1000)==0
+        save("./241202_sweep2.mat","alldata");
     end
-    if mod(i,10)==0
+    if mod(i,100)==0
         fprintf("Run %05d of %05d complete\n",i,size(testList,1))
     end
 end
@@ -185,7 +185,7 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT)
     current_state = veh_start;        % Set condition.
     target_state = goal;                            % Reference posture.
     state_history(:,1) = current_state;             % append this array at each step with current state
-    time_limit = 30;                                % Maximum simulation time (seconds)
+    time_limit = 60;                                % Maximum simulation time (seconds)
     sim_time_history(1) = current_time;             % append this array at each step with sim time
     
     control_horizon = zeros(N,2);                   % Controls for N horizon steps
@@ -218,7 +218,7 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT)
         mpciter = mpciter + 1;
 
         if sep_safe < 0
-            disp("CRASH!!")
+            % disp("CRASH!!")
             break
         end
     
