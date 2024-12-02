@@ -8,10 +8,10 @@ addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACK
 import casadi.*
 
 DT = 0.1;               % sampling time [s]
-N = 15;                 % prediction horizon
+N = 20;                 % prediction horizon
 veh_rad = 0.55;         % vehicle radius
 % gamma = 0.999;          % cbf parameter
-cbfParms = [10 ; 10 ]; 
+cbfParms = [1 ; 10 ]; 
 
 % Static Obstacle params`
 obs_rad = 0.5;
@@ -46,9 +46,9 @@ S = SX.sym('s',N,1);                    %% Slack variable
 J = 0;                                  % Empty Objective Function
 g = [];                                 % Empty Constraints Vector
 
-Qx = diag([10 10 1]);                   % Horizon steps position error weighing matrix
+Qx = diag([1 1 1]);                   % Horizon steps position error weighing matrix
 % Qv = diag([10 10 1]);                   % Horizon steps velocity error Weighing matrix
-R = diag([5 0.1]);                      % Horizon steps control effort Weighing matrix
+R = diag([1 1]);                      % Horizon steps control effort Weighing matrix
 Q = 10^3*diag([1 1 1]);                 % Terminal state position error weight matrix
 
 st = X(:,1); % Initial State
@@ -173,7 +173,7 @@ average_mpc_time = main_loop_time/(mpciter+1)
 vehicle_positions = state_history(1:3,:);
 solution_horiozons = solution_history(:,1:3,:);
 visualiseSimulation(vehicle_positions, solution_horiozons, [], obstacle, target_state', N, veh_rad, DT)
-
+%%
 fig2 = figure();
 t = tiledlayout(2, 2);
 nexttile
