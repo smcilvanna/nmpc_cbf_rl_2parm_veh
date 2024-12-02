@@ -10,7 +10,7 @@ timeStep = simdata.dt;
 
 
 %% Figure setup
-fig = figure(100)
+fig = figure(100);
 % fig = gcf; %Current figure handle
 fig.Color = 'w';
 fig.Units = 'normalized';

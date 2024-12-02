@@ -6,11 +6,12 @@ if firstrun
     DT = 0.1; N = 20;
     [solver, args, f] = createMPCKinematicSolver(DT,N);
 end
-cbfParms = [0.8 ; 2 ; 1];
+
+cbfParms = [1 ; 15 ; 0.25];
 obs_rad = 0.5;
 simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT);
 
-input("Press ENTER to continue to Plots..")
+% input("Press ENTER to continue to Plots..")
 
 %% Plots
 
@@ -41,9 +42,36 @@ plot(simdata.umpc(:,2))
 subtitle("MPC Action Yaw")
 hold off
 
-%%
+%% BATCH RUN
 
-plotCurrentState(current_state, obstacle, current_time);
+firstrun = ~exist("solver","var") || ~exist("args","var") || ~exist("f","var");
+if firstrun
+    clc, close all, clear all
+    addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION ####          
+    import casadi.*
+    DT = 0.1; N = 20;
+    [solver, args, f] = createMPCKinematicSolver(DT,N);
+end
+
+k1 = [0.1 , 0.2:0.2:1 , 2:2:20];
+k2 = k1;
+obs = [0.1, 0.5, 1.0, 2.0, 3.0, 4,0, 5.0];
+testList = combinations(k1,k2,obs);
+alldata = [];
+
+for i = 1:size(testList,1)
+    cbfParms = [ testList.k1(i); testList.k2(i) ; 0.50];
+    obs_rad = testList.obs(i);
+    simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT);
+    alldata = [alldata ; simdata];
+    if mod(i,100)==0
+        save("./241202_sweep1.mat","alldata");
+    end
+    if mod(i,10)==0
+        fprintf("Run %05d of %05d complete\n",i,size(testList,1))
+    end
+end
+
 
 
 %% LOCAL FUNCTIONS
@@ -186,7 +214,7 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT)
 
         X0 = solution_history(:,:,mpciter+1);               % current state horizon     % = reshape(full(sol.x(1:6*(N+1)))',6,N+1)';   
         X0 = [ current_state' ;  X0(3:end,:) ; X0(end,:)];   % state horizon for next step, replace mpc current state with sim current state, end state appears on last two horizon steps
-        mpciter
+        mpciter;
         mpciter = mpciter + 1;
 
         if sep_safe < 0
@@ -217,7 +245,8 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT)
     simdata.target = target_state';
     simdata.dt = DT;
     simdata.sep = safe_sep_history;
-    disp(getReward(simdata));
+    simdata.cbf = cbfParms;
+    % disp(getReward(simdata));
 end
 
 
