@@ -75,6 +75,7 @@ end
 
 
 %% LOCAL FUNCTIONS
+
 % CONTROL FUNCTIONS
 %%
 function [solver, args, f] = createMPCKinematicSolver(DT,N)
@@ -402,38 +403,6 @@ function [u_safe, u_qp, sep_safe] = controlBarrierFunction(t, obs, u_nom,eta, cb
     % end
 
 end
-%% RL FUNCTIONS
-
-function reward = getReward(simdata)
-    
-    min_sep = min(simdata.sep);
-
-    if min_sep < 0
-        reward = -1;
-    else
-
-        tx = simdata.target(1);
-        ty = simdata.target(2);
-        ox = simdata.obstacle(1);
-        oy = simdata.obstacle(2);
-        orad = simdata.obstacle(3);
-        vrad = simdata.vrad;
-        % Calculate absolute minimum path to clear
-        optrad = orad+vrad;
-        opx = ox + optrad*cos(deg2rad(135));
-        opy = oy + optrad*sin(deg2rad(135));
-        l1 = sqrt(opx^2 + opy^2);
-        l2 = sqrt( (tx-opx)^2 + (ty-opy)^2 );
-        optDist = l1 + l2;
-        % Calculate path travelled
-        diffs = diff(simdata.states(1:2,:),1,2);
-        distances = sqrt(sum(diffs.^2,1));
-        pathDist = sum(distances);
-        reward = optDist/pathDist;
-    end
-
-
-end
 
 
 %% PLOT FUNCTIONS
@@ -515,38 +484,3 @@ function plotCurrentState(vehicle, obstacle,time)
     close all;
 end
 
-%%
-
-function plotCircle(center, radius, lineStyle, color)
-    % plotCircle Plots a circle on the current figure with specified line style and color
-    %   plotCircle(center, radius, lineStyle, color) plots a circle with the specified center, radius,
-    %   line style, and color.
-    %   center - A 1x2 vector specifying the [x, y] coordinates of the circle's center.
-    %   radius - A scalar specifying the radius of the circle.
-    %   lineStyle - A character vector or string scalar specifying the line style (e.g., '-', '--').
-    %   color - A character vector or string scalar specifying the color ('r', 'g', 'b', 'k', 'gray').
-
-    % Validate inputs
-    if length(center) ~= 2
-        error('Center must be a 1x2 vector specifying [x, y] coordinates.');
-    end
-    if ~isscalar(radius) || radius <= 0
-        error('Radius must be a positive scalar.');
-    end
-    validLineStyles = {'-', '--', ':', '-.'};
-    if ~ismember(lineStyle, validLineStyles)
-        error('Invalid line style. Choose from: ''-'', ''--'', '':'' or ''-.''.');
-    end
-    validColors = {'r', 'g', 'b', 'k', 'gray'};
-    if ~ismember(color, validColors)
-        error('Invalid color. Choose from: ''r'', ''g'', ''b'', ''k'', ''gray''.');
-    end
-    
-    % Create the circle using the rectangle function
-    rectangle('Position', [center - radius, 2*radius, 2*radius], 'Curvature', [1, 1], ...
-              'EdgeColor', color, 'LineStyle', lineStyle);
-    
-    % Ensure the aspect ratio is equal to make the circle look like a circle
-    axis equal;
-    grid on; % Optional: Add some grid lines for better visualization
-end
