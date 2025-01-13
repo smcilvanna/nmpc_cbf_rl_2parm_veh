@@ -1,5 +1,5 @@
 function reward = getReward(simdata)
-%%% From the simdata, calculate the reward value passed to RL
+% From the simdata, calculate the reward value passed to RL
     min_sep = min(simdata.sep);
 
     if min_sep < 0
@@ -26,8 +26,17 @@ function reward = getReward(simdata)
         reward = optDist/pathDist;
         reward = min(reward,1);
         if reward > 0
-            reward = reward^8;
+            reward = reward^11;
         end
+        % check finish position
+        finishSep = norm([tx ty] - simdata.states(1:2,end));
+
+        if reward > 0 && finishSep > 0.5
+            
+            reward = reward * 0.5/finishSep;
+        end
+
+
     end
 
 

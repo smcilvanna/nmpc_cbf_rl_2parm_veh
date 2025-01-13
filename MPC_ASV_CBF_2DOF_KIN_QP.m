@@ -53,9 +53,9 @@ if firstrun
     [solver, args, f] = createMPCKinematicSolver(DT,N);
 end
 
-k1 = [ 0.05:0.05:1 , 2:2:50];
+k1 = [ 0.01:0.05:3];
 k2 = k1;
-obs = [0.1, 0.5, 1.0, 2.0, 3.0, 4,0, 5.0, 6.0];
+obs = [0.1, 0.5, 1.0, 2.0, 3.0, 4,0, 5.0 6.0];
 testList = combinations(k1,k2,obs);
 alldata = [];
 
@@ -65,7 +65,7 @@ for i = 1:size(testList,1)
     simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT);
     alldata = [alldata ; simdata];
     if mod(i,1000)==0
-        save("./241202_sweep2.mat","alldata");
+        save("./241202_sweep3.mat","alldata");
     end
     if mod(i,100)==0
         fprintf("Run %05d of %05d complete\n",i,size(testList,1))
