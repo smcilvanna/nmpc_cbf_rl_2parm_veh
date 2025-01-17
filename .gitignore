@@ -1,7 +1,9 @@
 *temp*
+*TEMP*
 *.gif
 *.jpg
 *.png
+*.pdf
 
 # Windows default autosave extension
 *.asv
