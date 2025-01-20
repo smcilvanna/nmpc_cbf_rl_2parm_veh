@@ -16,7 +16,7 @@ for i = 1:size(alldata,1)
     end
 
 end
-results = sortrows(results,"obs_rad");
+%results = sortrows(results,"obs_rad");
 
 clearvars -except alldata results
 
@@ -33,7 +33,7 @@ for i = 1:numel(orads)
     plotResults(ftable)
     subtitle(sprintf("Obstacle Radius %.03f m",obs))
     % input("ENTER for next figure")
-    pause(0.9);
+    input();
     clf(fig);
     
 

@@ -55,8 +55,9 @@ end
 
 k1 = [ 0.01:0.05:3];
 k2 = k1;
-obs = [0.1, 0.5, 1.0, 2.0, 3.0, 4,0, 5.0 6.0];
+obs = [0.1, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 testList = combinations(k1,k2,obs);
+
 alldata = [];
 
 for i = 1:size(testList,1)
