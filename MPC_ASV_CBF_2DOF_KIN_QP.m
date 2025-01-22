@@ -1,3 +1,7 @@
+cd("C:\Users\14244039\OneDrive - Queen's University Belfast\Documents\MATLAB\cbfrl\cbfrl_2param\cbf_2parm_veh")
+return
+%% Run for single parameter
+
 firstrun = ~exist("solver","var") || ~exist("args","var") || ~exist("f","var");
 if firstrun
     clc, close all, clear all
@@ -52,27 +56,30 @@ if firstrun
     DT = 0.1; N = 20;
     [solver, args, f] = createMPCKinematicSolver(DT,N);
 end
-outname = "./241202_sweep3.mat";
+outname = "./251221_sweep9.mat";
 input("\n\nDid you change output file name?\n\nENTER to begin ...");
-k1 = [ 0.01:0.05:3];
-k2 = k1;
-obs = [0.1, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-testList = combinations(k1,k2,obs);
+% k1 = [ 0.01:0.05:3];
+% k2 = k1;
+k1 = [0.1, 1, 10];
+k2 = [0.001, 0.01, 0.1, 0.5, 1, 5, 10, 25, 50 ];
+rcbf = [0.5, 1, 2, 5];
+obs = [0.1, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 10.0];
+testList = combinations(k1,k2,rcbf,obs);
 alldata = [];
 
 for i = 1:size(testList,1)
-    cbfParms = [ testList.k1(i); testList.k2(i) ; 0.50];
+    cbfParms = [ testList.k1(i); testList.k2(i) ; testList.rcbf(i)];
     obs_rad = testList.obs(i);
     simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT);
     alldata = [alldata ; simdata];
     if mod(i,1000)==0
-        save(outname,"alldata");
+        save(outname,"alldata", "testList");
     end
     if mod(i,100)==0
         fprintf("Run %05d of %05d complete\n",i,size(testList,1))
     end
 end
-
+save(outname,"alldata", "testList");
 
 
 %% LOCAL FUNCTIONS
