@@ -1,5 +1,7 @@
 cd("C:\Users\14244039\OneDrive - Queen's University Belfast\Documents\MATLAB\cbfrl\cbfrl_2param\cbf_2parm_veh")
 return
+%%
+clearvars -except alldata result* testList
 
 %%
 load("251221_sweep9.mat")
@@ -31,7 +33,7 @@ for i = 1:numel(orads)
     resultsObs{i,1} = results(ismembertol(results.obs_rad, orads(i), 1e-5),:);
     resultsObs{i,2} = orads(i);
 end
-clearvars -except alldata results resultsObs
+clearvars -except alldata results resultsObs testList
 %% Plot Results
 close all;
 orads = unique(results.obs_rad);
@@ -135,10 +137,6 @@ for i = 1:size(alldata,1)
 end
 
 
-
-
-
-
 %% LOCAL FUNCTIONS
 
 function plotPath(fig, simdata, orad)
@@ -185,7 +183,7 @@ function plotPath(fig, simdata, orad)
     ylim([-5 , 25]);
     axis square;
 
-    ttxt = sprintf('k1 = %.3f | k2 = %.3f',simdata.cbf(1),simdata.cbf(2));
+    ttxt = sprintf('k1 = %.3f | k2 = %.3f | rcbf = %.3f',simdata.cbf(1),simdata.cbf(2),simdata.cbf(3) );
     title(ttxt);
 
 
