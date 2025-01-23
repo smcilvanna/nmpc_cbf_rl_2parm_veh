@@ -7,54 +7,76 @@ clearvars -except alldata result* testList
 load("251221_sweep9.mat")
 
 %% Read in all simulated data and get reward from each run
+[results, resultsObs] = processResultsTable(alldata);
 
-results = [];
-for i = 1:size(alldata,1)
-    cbf = alldata(i).cbf;
-    obs = alldata(i).obstacle(3);
-    rewardout = getReward(alldata(i));
-    reward = rewardout.reward;
-    dist = rewardout.pathDist;
-    opdst = rewardout.optDist;
-    fsep = rewardout.finishSep;
-    msep = rewardout.min_sep;
-    results = [results ; array2table(   [cbf',            obs,      reward,  dist,      opdst,        fsep,       msep], ...
-                        "VariableNames",["k1","k2","rcbf","obs_rad","reward","pathDist","optimalDist","finishSep","minSep"])];
-    if mod(i,1000)==0
-        disp(i)
-    end
-end
-%results = sortrows(results,"obs_rad");
 
-% Split Results into cell array of tables (1 table per obstacle)
-close all;
-orads = unique(results.obs_rad);
-for i = 1:numel(orads)
-    resultsObs{i,1} = results(ismembertol(results.obs_rad, orads(i), 1e-5),:);
-    resultsObs{i,2} = orads(i);
-end
-clearvars -except alldata results resultsObs testList
 %% Plot Results
 close all;
 orads = unique(results.obs_rad);
-fig = figure();
+%fig = figure();
 obsBest = [];
+
 for i = 1:numel(orads)
     obs = orads(i);
     % if obs == 0 || obs == 6.0
     %     break    
     % end
     ftable = results(ismembertol(results.obs_rad, obs, 1e-5),:);
-    best = plotResults(ftable);
+    [best figarray{i}] = plotResults(ftable);
     subtitle(sprintf("Obstacle Radius %.03f m",obs));
     % input("ENTER for next figure")
-    pause(1);
-    clf(fig);
+    %pause(1);
     obsBest = [obsBest ; [obs , best] ];
 end
 
-fig2 = figure(2);
-scatter3(obsBest(:,1), obsBest(:,2), obsBest(:,3));
+xobs = obsBest(:,1);
+yk1  = obsBest(:,2);
+yk2  = obsBest(:,3);
+yk3  = obsBest(:,4); 
+
+figure(1);
+% Create tiled layout
+t1 = tiledlayout(2, 2);
+
+% Plot 1
+nexttile;
+scatter3(xobs, yk1, yk2);
+title('Path Distance');
+xlabel("Obs(m)"); ylabel("k1"); zlabel("k2");
+% xlim(cbfrange);
+% ylim(cbfrange);
+% zlim([0 1]);
+
+% Plot 2
+nexttile;
+plot(xobs,yk1);
+title('Best K1');
+xlabel("Obs(m)"); ylabel("k1");
+%xlim(cbfrange); ylim(cbfrange); zlim([0 1]);
+
+% Plot 3
+nexttile;
+plot(xobs,yk2);
+title('Best K2');
+xlabel("Obs(m)"); ylabel("k2");
+%xlim(cbfrange); ylim(cbfrange); zlim([0 1]);
+
+% Plot 4
+nexttile;
+plot(xobs,yk3);
+title('Best K3 (cbf radius)');
+xlabel("Obs(m)"); ylabel("k3");
+%xlim(cbfrange); ylim(cbfrange); zlim([0 1]);
+
+% Plot obstacle figs
+% figure(2);
+% for i = 1:numel(figarray)
+%     nexttile;
+%     ax = copyobj(allchild(figarray{i}.CurrentAxes), gca);
+%     title(sprintf("%0.3f m Obs",obsBest(i,1)));
+% end
+
+clearvars -except alldata obsBest fig* t* results*
 
 
 %% Plot a single obstacle results
@@ -129,7 +151,7 @@ end
 
 %% Plot Paths
 close all;
-fig = figure(Visible="off");
+fig = figure(Visible="on");
 
 for i = 1:size(alldata,1)
     plotPath(fig, alldata(i), 4.0);
@@ -138,6 +160,36 @@ end
 
 
 %% LOCAL FUNCTIONS
+
+function [results, resultsObs] = processResultsTable(alldata)
+    results = [];
+    for i = 1:size(alldata,1)
+        cbf = alldata(i).cbf;
+        obs = alldata(i).obstacle(3);
+        rewardout = getReward(alldata(i));
+        reward = rewardout.reward;
+        dist = rewardout.pathDist;
+        opdst = rewardout.optDist;
+        fsep = rewardout.finishSep;
+        msep = rewardout.min_sep;
+        results = [results ; array2table(   [cbf',            obs,      reward,  dist,      opdst,        fsep,       msep], ...
+                            "VariableNames",["k1","k2","rcbf","obs_rad","reward","pathDist","optimalDist","finishSep","minSep"])];
+        if mod(i,1000)==0
+            disp(i)
+        end
+    end
+    %results = sortrows(results,"obs_rad");
+    
+    % Split Results into cell array of tables (1 table per obstacle)
+    close all;
+    orads = unique(results.obs_rad);
+    for i = 1:numel(orads)
+        resultsObs{i,1} = results(ismembertol(results.obs_rad, orads(i), 1e-5),:);
+        resultsObs{i,2} = orads(i);
+    end
+end
+
+
 
 function plotPath(fig, simdata, orad)
 % PLOTPATH Plot the path of a simulated run
@@ -188,12 +240,13 @@ function plotPath(fig, simdata, orad)
 
 
     hold off
-    exportgraphics(gcf, './out.gif', 'ContentType', 'image', 'Append', true);
+    
+    %exportgraphics(gcf, './out.gif', 'ContentType', 'image', 'Append', true);
 
 end
 
 
-function best = plotResults(ftable)
+function [best, obsfig] = plotResults(ftable)
 
     obs = unique(ftable.obs_rad);
     if numel(obs) > 1
@@ -217,18 +270,20 @@ function best = plotResults(ftable)
     
     xb = bestresult.k1;
     yb = bestresult.k2;
+    rb = bestresult.rcbf;
     zb = bestresult.reward;
-    best = [ xb yb ];
-    if numel(best) > 2
+    best = [ xb yb rb ];
+    if numel(best) > 3
         best = best(1,:);
     end
 
+    obsfig = figure(Visible="on");
     scatter3(x,y,z,10,"filled");
     hold on;
     scatter3(xb,yb,zb, 50, "filled", "r")
 
-    xlabel('k1 Values')
-    ylabel('k2 values')
-    title('Reward Heatmap')
+    xlabel('k1 Values');
+    ylabel('k2 values');
+    title(sprintf('%.03 m Obstacle Rewards',obs));
 
 end

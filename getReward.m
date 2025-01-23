@@ -16,10 +16,16 @@ function rewardout = getReward(simdata)
         
         % Calculate absolute minimum path to clear
         optrad = orad+vrad;
-        opx = ox + optrad*cos(deg2rad(135));
-        opy = oy + optrad*sin(deg2rad(135));
-        l1 = sqrt(opx^2 + opy^2);
-        l2 = sqrt( (tx-opx)^2 + (ty-opy)^2 );
+        % opx = ox + optrad*cos(deg2rad(135));
+        % opy = oy + optrad*sin(deg2rad(135));
+        % l1 = sqrt(opx^2 + opy^2);
+        % l2 = sqrt( (tx-opx)^2 + (ty-opy)^2 );
+
+        p1 = sqrt(ox^2 + oy^2);
+        p2 = sqrt( (tx-ox)^2 + (ty-oy)^2);
+        l1 = sqrt(p1^2 + orad^2);
+        l2 = sqrt(p2^2 + orad^2);
+        
         optDist = l1 + l2;
         
         % Calculate path travelled
