@@ -1,5 +1,15 @@
+% Windows Path
 cd("C:\Users\14244039\OneDrive - Queen's University Belfast\Documents\MATLAB\cbfrl\cbfrl_2param\cbf_2parm_veh")
 return
+
+%% Linux Path
+cd('/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh')
+return
+
+%% Linux Path (OLD files)
+cd('/home/sm/matlab/cbfRL/cbf_2parm_veh_old/')
+return
+
 %%
 clearvars -except alldata result* testList
 

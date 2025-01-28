@@ -4,6 +4,7 @@
 *.jpg
 *.png
 *.pdf
+*.log
 
 # Windows default autosave extension
 *.asv
