@@ -18,7 +18,6 @@ simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT);
 % input("Press ENTER to continue to Plots..")
 
 %% Plots
-
 visualiseSimulation(simdata)
 %%
 fig2 = figure();
@@ -46,7 +45,7 @@ plot(simdata.umpc(:,2))
 subtitle("MPC Action Yaw")
 hold off
 
-%% BATCH RUN
+%% >>>>>>>>>>>>>>>>>>>>>>> BATCH RUN <<<<<<<<<<<<<<<<<<<<<<<<<<
 
 firstrun = ~exist("solver","var") || ~exist("args","var") || ~exist("f","var");
 if firstrun
@@ -56,15 +55,23 @@ if firstrun
     DT = 0.1; N = 20;
     [solver, args, f] = createMPCKinematicSolver(DT,N);
 end
-outname = "./251221_sweep9.mat";
-input("\n\nDid you change output file name?\n\nENTER to begin ...");
-% k1 = [ 0.01:0.05:3];
-% k2 = k1;
-k1 = [0.1, 1, 10];
-k2 = [0.001, 0.01, 0.1, 0.5, 1, 5, 10, 25, 50 ];
-rcbf = [0.5, 1, 2, 5];
-obs = [0.1, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 10.0];
+todaydate = datestr(datetime('today'), 'yymmdd');
+outname = sprintf("./%s_sweep_parm3_C2.mat",todaydate);
+
+%sweep_parm3_B* : Parameter sweep with original vehicle mpc settings
+%C1 : LinVelMax = 10 (this might have been 15 or 12!), limited k1 range
+%C2 : LinVelMax = 10, equal k1 k2 range
+
+
+input("\n\nDid you change the output mat file name? \n\nENTER to begin simulations...\n\n");
+% k1 = [0.1,  0.5 : 0.5 : 3  ] ;
+k1 = [ 0.1, 0.5,  1.0 : 1.0 : 50 ];
+k2 = [ 0.1, 0.5,  1.0 : 1.0 : 50 ];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+rcbf = 1;
+% obs = [ 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 ];
+obs = [0.5 1.5 2.5 3.5 4.5 5.5 ];
 testList = combinations(k1,k2,rcbf,obs);
+testList = sortrows(testList,"obs");
 alldata = [];
 
 for i = 1:size(testList,1)
@@ -169,8 +176,8 @@ import casadi.*
     args.lbx(3:n_states:n_states*(N+1),1) = -inf; %state yaw lower bound
     args.ubx(3:n_states:n_states*(N+1),1) = inf; %state yaw upper bound
     % linear velocity control limits
-    args.lbx(n_states*(N+1)+1:n_controls:n_states*(N+1)+n_controls*N,1) = -5; %Tx lower bound
-    args.ubx(n_states*(N+1)+1:n_controls:n_states*(N+1)+n_controls*N,1) = 5; %Tx upper bound
+    args.lbx(n_states*(N+1)+1:n_controls:n_states*(N+1)+n_controls*N,1) = -5; % Linear vel control lower bound
+    args.ubx(n_states*(N+1)+1:n_controls:n_states*(N+1)+n_controls*N,1) = 10; % Linear vel control upper bound
     % angular velocity control limits
     args.lbx(n_states*(N+1)+n_controls:n_controls:n_states*(N+1)+n_controls*N,1) = -1; %Tyaw lower bound
     args.ubx(n_states*(N+1)+n_controls:n_controls:n_states*(N+1)+n_controls*N,1) = 1; %Tyaw upper bound
@@ -194,7 +201,7 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT)
     current_state = veh_start;        % Set condition.
     target_state = goal;                            % Reference posture.
     state_history(:,1) = current_state;             % append this array at each step with current state
-    time_limit = 60;                                % Maximum simulation time (seconds)
+    time_limit = 80;                                % Maximum simulation time (seconds)
     sim_time_history(1) = current_time;             % append this array at each step with sim time
     
     control_horizon = zeros(N,2);                   % Controls for N horizon steps

@@ -14,7 +14,11 @@ return
 clearvars -except alldata result* testList
 
 %%
-load("251221_sweep9.mat")
+f1 = '/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/MPC_ASV_CBF_2DOF_KIN_QP.m'
+f2 = '/home/sm/matlab/cbfRL/cbf_2parm_veh_old/MPC_ASV_CBF_2DOF_KIN_QP_3700.m'
+visdiff(f1,f2);
+
+
 
 %% Read in all simulated data and get reward from each run
 [results, resultsObs] = processResultsTable(alldata);
