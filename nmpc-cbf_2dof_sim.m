@@ -56,18 +56,20 @@ if firstrun
     [solver, args, f] = createMPCKinematicSolver(DT,N);
 end
 todaydate = datestr(datetime('today'), 'yymmdd');
-outname = sprintf("./%s_sweep_parm3_C2.mat",todaydate);
+outname = sprintf("./%s_sweep_parm3_C4.mat",todaydate);
 
 %sweep_parm3_B* : Parameter sweep with original vehicle mpc settings
 %C1 : LinVelMax = 10 (this might have been 15 or 12!), limited k1 range
 %C2 : LinVelMax = 10, equal k1 k2 range
+%C3 : LinVelMAX = 10, equal k1 k2, k3 range also
+%C4 : linvelmax = 20, equal k1 k2 k3 range 
 
-
-input("\n\nDid you change the output mat file name? \n\nENTER to begin simulations...\n\n");
+fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname);
+input("");
 % k1 = [0.1,  0.5 : 0.5 : 3  ] ;
-k1 = [ 0.1, 0.5,  1.0 : 1.0 : 50 ];
-k2 = [ 0.1, 0.5,  1.0 : 1.0 : 50 ];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
-rcbf = 1;
+k1 = [ 0.1, 0.5, 1.0, 5.0 :5.0: 70 ];
+k2 = [ 0.1, 0.5, 1.0, 5.0 :5.0: 70 ];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+rcbf = [0.5, 1.5, 2.5 ];
 % obs = [ 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 ];
 obs = [0.5 1.5 2.5 3.5 4.5 5.5 ];
 testList = combinations(k1,k2,rcbf,obs);
@@ -177,7 +179,7 @@ import casadi.*
     args.ubx(3:n_states:n_states*(N+1),1) = inf; %state yaw upper bound
     % linear velocity control limits
     args.lbx(n_states*(N+1)+1:n_controls:n_states*(N+1)+n_controls*N,1) = -5; % Linear vel control lower bound
-    args.ubx(n_states*(N+1)+1:n_controls:n_states*(N+1)+n_controls*N,1) = 10; % Linear vel control upper bound
+    args.ubx(n_states*(N+1)+1:n_controls:n_states*(N+1)+n_controls*N,1) = 20; % Linear vel control upper bound
     % angular velocity control limits
     args.lbx(n_states*(N+1)+n_controls:n_controls:n_states*(N+1)+n_controls*N,1) = -1; %Tyaw lower bound
     args.ubx(n_states*(N+1)+n_controls:n_controls:n_states*(N+1)+n_controls*N,1) = 1; %Tyaw upper bound

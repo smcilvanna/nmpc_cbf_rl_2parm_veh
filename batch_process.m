@@ -1,4 +1,4 @@
-% Windows Path
+%% Windows Path
 cd("C:\Users\14244039\OneDrive - Queen's University Belfast\Documents\MATLAB\cbfrl\cbfrl_2param\cbf_2parm_veh")
 return
 
@@ -11,19 +11,14 @@ cd('/home/sm/matlab/cbfRL/cbf_2parm_veh_old/')
 return
 
 %%
-clearvars -except alldata result* testList
+clearvars -except alldata testList
 
 %%
-f1 = '/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/MPC_ASV_CBF_2DOF_KIN_QP.m'
-f2 = '/home/sm/matlab/cbfRL/cbf_2parm_veh_old/MPC_ASV_CBF_2DOF_KIN_QP_3700.m'
-visdiff(f1,f2);
-
 
 
 %% Read in all simulated data and get reward from each run
 [results, resultsObs] = processResultsTable(alldata);
-
-
+fprintf("\n\nResults Table Generated.\n\n\n");
 %% Plot Results
 close all;
 orads = unique(results.obs_rad);
@@ -90,6 +85,8 @@ xlabel("Obs(m)"); ylabel("k3");
 %     title(sprintf("%0.3f m Obs",obsBest(i,1)));
 % end
 
+% input("ENTER to close all figures...");
+% close all;
 clearvars -except alldata obsBest fig* t* results*
 
 

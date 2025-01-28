@@ -53,12 +53,19 @@ function rewardout = getReward(simdata)
         if isfield(simdata, 'maxVel') && ~isempty(simdata.maxVel)
             maxVel = simdata.maxVel;
         else
-            maxVel = 12;
+            maxVel = 10;
+        end
+        
+        if aveVel >= maxVel
+            aveVel = maxVel;
+            disp("Check average velocity reward calculation!!");
+            % ave should always be < max, put in this to alert for rogue result
         end
         
         rv = aveVel/maxVel;                             % Average-velocity reward
-
-        wp = 0.4; ws = 0.3; wv = 0.3;
+        wp = 0.6; 
+        ws = 0.1; 
+        wv = 0.3;                   % Reward component weightings
         reward = rp*wp + rs*ws + rv*wv;                 % total reward
         
     end
