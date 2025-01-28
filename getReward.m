@@ -1,13 +1,17 @@
 function rewardout = getReward(simdata)
 % From the simdata, calculate the reward value passed to RL
-    
-
     min_sep = min(simdata.sep);
     if min_sep < 0
         reward = -1;
         optDist = -1;
         pathDist = -1;
         endSep = -1;
+        maxEndSep = -1;
+        maxVel = -1;
+        aveVel = -1;
+        simtime = -1;
+        rp = 0; rs = 0; rv = 0;
+        wp = 0; ws = 0; wv = 0;
     else
         tx = simdata.target(1);
         ty = simdata.target(2);

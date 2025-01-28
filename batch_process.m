@@ -159,6 +159,23 @@ for i = 1:size(alldata,1)
 end
 
 
+
+%%
+
+    rewardout.reward = reward;
+    rewardout.rp = rp;
+    rewardout.rs = rs;
+    rewardout.rv = rv;
+    rewardout.weights = [wp ws wv];    
+    rewardout.min_sep = min_sep;
+    rewardout.optDist = optDist;
+    rewardout.pathDist = pathDist;
+    rewardout.endSep = endSep;
+    rewardout.endSepMax = maxEndSep;
+    rewardout.maxVel = maxVel;
+    rewardout.aveVel = aveVel;
+    rewardout.simtime = simtime;
+
 %% LOCAL FUNCTIONS
 
 function [results, resultsObs] = processResultsTable(alldata)
@@ -170,10 +187,14 @@ function [results, resultsObs] = processResultsTable(alldata)
         reward = rewardout.reward;
         dist = rewardout.pathDist;
         opdst = rewardout.optDist;
-        fsep = rewardout.finishSep;
+        fsep = rewardout.endSep;
         msep = rewardout.min_sep;
-        results = [results ; array2table(   [cbf',            obs,      reward,  dist,      opdst,        fsep,       msep], ...
-                            "VariableNames",["k1","k2","rcbf","obs_rad","reward","pathDist","optimalDist","finishSep","minSep"])];
+        aveVel = rewardout.aveVel;
+        maxVel = rewardout.maxVel;
+        stime = rewardout.simtime;
+
+        results = [results ; array2table(   [cbf',            obs,      reward,  dist,      opdst,        fsep,       msep      aveVel,     maxVel,     stime], ...
+                            "VariableNames",["k1","k2","rcbf","obs_rad","reward","pathDist","optimalDist","finishSep","minSep", "aveVel",   "maxVel",   "simTime"])];
         if mod(i,1000)==0
             disp(i)
         end
