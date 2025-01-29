@@ -63,9 +63,9 @@ function rewardout = getReward(simdata)
         end
         
         rv = aveVel/maxVel;                             % Average-velocity reward
-        wp = 0.6; 
-        ws = 0.1; 
-        wv = 0.3;                   % Reward component weightings
+        wp = 4/6; 
+        ws = 1/6; 
+        wv = 2/6;                   % Reward component weightings
         reward = rp*wp + rs*ws + rv*wv;                 % total reward
         
     end

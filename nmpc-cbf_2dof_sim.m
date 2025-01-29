@@ -49,42 +49,78 @@ hold off
 
 firstrun = ~exist("solver","var") || ~exist("args","var") || ~exist("f","var");
 if firstrun
-    clc, close all, clear all
+    clc, close all; clearvars -except testListOld;
     addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION ####          
     import casadi.*
     DT = 0.1; N = 20;
     [solver, args, f] = createMPCKinematicSolver(DT,N);
 end
 todaydate = datestr(datetime('today'), 'yymmdd');
-outname = sprintf("./%s_sweep_parm3_C4.mat",todaydate);
+outname = sprintf("./%s_sweep_parm3_C3b.mat",todaydate);
 
 %sweep_parm3_B* : Parameter sweep with original vehicle mpc settings
-%C1 : LinVelMax = 10 (this might have been 15 or 12!), limited k1 range
-%C2 : LinVelMax = 10, equal k1 k2 range
-%C3 : LinVelMAX = 10, equal k1 k2, k3 range also
-%C4 : linvelmax = 20, equal k1 k2 k3 range 
-%C5 : linvelmax = 10, 
+%C1 : VelMax = 10 (this might have been 15 or 12!), limited k1 range
+%C2 : VelMax = 10, equal k1 k2 range
+%C3 : VelMax = 10, equal k1 k2, k3 range also
+%C4 : VelMax = 20, equal k1 k2 k3 range 
 
 fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname);
 input("");
-% % C4
+existList = false;
+if exist("testListOld","var")
+    fprintf("\n\nThere is an existing test list, will ignore existing tests...\n\nENTER to begin simulations...\n\n");
+    input("");
+    existList = true;
+end
+
+
+% % C3
 % k1 = [ 0.1, 0.5, 1.0, 5.0 :5.0: 70 ];
 % k2 = [ 0.1, 0.5, 1.0, 5.0 :5.0: 70 ];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
 % rcbf = [0.5, 1.5, 2.5 ];
 % obs = [0.5 1.5 2.5 3.5 4.5 5.5 ];       % obs = [ 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 ];
 
-% C5
-k1 = [ 0.1, 0.5, 1.0, 5.0 :5.0: 140 ];
-k2 = [ 0.1, 0.5, 1.0, 5.0 :5.0: 140 ];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
-rcbf = [0.5, 1.5, 2.5];
-obs = [0.5 1.5 2.5 3.5 4.5 5.5 ];       % obs = [ 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 ];
+% % C4
+% k1 = [ 0.1, 0.5, 1.0, 5.0 :5.0: 140 ];
+% k2 = [ 0.1, 0.5, 1.0, 5.0 :5.0: 140 ];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+% rcbf = [0.5, 1.5, 2.5];
+% obs = [0.5 1.5 2.5 3.5 4.5 5.5 ];       % obs = [ 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 ];
 
+C3b
+k1 = [ 0.001, 0.01, 0.1, 0.5, 1.0, 5.0 :5.0: 70, 80 :10: 300 ];
+k2 = [ 0.001, 0.01, 0.1, 0.5, 1.0, 5.0 :5.0: 70, 80 :10: 300 ];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+rcbf = [0.5, 1.5, 2.5 ];
+obs = [0.5 1.5 2.5 3.5 4.5 5.5 ];       % obs = [ 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 ];
 
 testList = combinations(k1,k2,rcbf,obs);
 testList = sortrows(testList,"obs");
 alldata = [];
+match_count = 0;
 
 for i = 1:size(testList,1)
+    matchTest = false;
+    
+    % Check if test has been run already, and skip if it has
+    if existList
+        for row = 1:size(testListOld,1)
+            matchTest = testList.k1(i) == testListOld.k1(row) && ...
+                        testList.k2(i) == testListOld.k2(row) && ...
+                        testList.rcbf(i) == testListOld.rcbf(row) && ...
+                        testList.obs(i) == testListOld.obs(row);
+
+            if matchTest
+                break
+            end
+        end
+    end
+
+    if matchTest
+        match_count = match_count + 1;
+        disp(fprintf("Test already run, match_count = %d",match_count));
+        continue
+    end
+
+
     cbfParms = [ testList.k1(i); testList.k2(i) ; testList.rcbf(i)];
     obs_rad = testList.obs(i);
     simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT);

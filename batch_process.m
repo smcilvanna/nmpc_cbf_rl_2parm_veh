@@ -19,19 +19,38 @@ clearvars -except alldata testList
 %% Read in all simulated data and get reward from each run
 [results, resultsObs] = processResultsTable(alldata);
 fprintf("\n\nResults Table Generated.\n\n\n");
+
+%% Check test parameter ranges
+k1s = unique(results.k1);
+k2s = unique(results.k2);
+rcbfs = unique(results.rcbf);
+
+fprintf("min k1 : %.2f  | max k1 : %.2f\n", min(k1s),max(k1s));
+fprintf("min k2 : %.2f  | max k2 : %.2f\n", min(k2s),max(k2s));
+fprintf("rcbf : %.2f \n", rcbfs);
+
+clearvars k1s k2s rcbfs
+
+
+
 %% Plot Results
 close all;
 orads = unique(results.obs_rad);
 %fig = figure();
 obsBest = [];
 
+rcbfs = unique(results.rcbf);
+rcbfn = numel(rcbfs)
+rcbf = rcbfs(1); disp(fprintf("Displaying %.3f, from the set of %d rcbf values tested...",rcbf,rcbfn));
+
 for i = 1:numel(orads)
     obs = orads(i);
     % if obs == 0 || obs == 6.0
     %     break    
     % end
-    ftable = results(ismembertol(results.obs_rad, obs, 1e-5),:);
-    [best figarray{i}] = plotResults(ftable);
+    ftable = results(ismembertol(results.obs_rad, obs, 1e-5),:);    % Filter for different obstacle each loop
+    ftable = ftable(ismembertol(ftable.rcbf, rcbf, 1e-5),:);         % Filter all loops for one rcbf
+    [best figarray{i}] = plotResults(ftable,"off");                 % second arg hides all seperate obs plots, set "on" to show
     subtitle(sprintf("Obstacle Radius %.03f m",obs));
     % input("ENTER for next figure")
     %pause(1);
@@ -278,7 +297,11 @@ function plotPath(fig, simdata, orad)
 end
 
 
-function [best, obsfig] = plotResults(ftable)
+function [best, obsfig] = plotResults(ftable,show)
+    
+    if nargin < 2
+        show = "off";
+    end
 
     obs = unique(ftable.obs_rad);
     if numel(obs) > 1
@@ -309,7 +332,7 @@ function [best, obsfig] = plotResults(ftable)
         best = best(1,:);
     end
 
-    obsfig = figure(Visible="on");
+    obsfig = figure(Visible=show);
     scatter3(x,y,z,10,"filled");
     hold on;
     scatter3(xb,yb,zb, 50, "filled", "r")
