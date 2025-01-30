@@ -13,7 +13,8 @@ return
 %%
 clearvars -except alldata testList
 
-%%
+%% Add functions path
+addpath("./functions/");
 
 
 %% Read in all simulated data and get reward from each run
@@ -25,8 +26,8 @@ k1s = unique(results.k1);
 k2s = unique(results.k2);
 rcbfs = unique(results.rcbf);
 
-fprintf("min k1 : %.2f  | max k1 : %.2f\n", min(k1s),max(k1s));
-fprintf("min k2 : %.2f  | max k2 : %.2f\n", min(k2s),max(k2s));
+fprintf("min k1 : %.3f  | max k1 : %.2f\n", min(k1s),max(k1s));
+fprintf("min k2 : %.3f  | max k2 : %.2f\n", min(k2s),max(k2s));
 fprintf("rcbf : %.2f \n", rcbfs);
 
 clearvars k1s k2s rcbfs
@@ -40,8 +41,9 @@ orads = unique(results.obs_rad);
 obsBest = [];
 
 rcbfs = unique(results.rcbf);
-rcbfn = numel(rcbfs)
-rcbf = rcbfs(1); disp(fprintf("Displaying %.3f, from the set of %d rcbf values tested...",rcbf,rcbfn));
+rcbfn = numel(rcbfs);
+rcbf = rcbfs(2); 
+fprintf("Displaying %.3f, from the set of %.0f rcbf values tested...\n",rcbf,rcbfn);
 
 for i = 1:numel(orads)
     obs = orads(i);
@@ -64,12 +66,12 @@ yk3  = obsBest(:,4);
 
 figure(1);
 % Create tiled layout
-t1 = tiledlayout(2, 2);
-
+t1 = tiledlayout(3, 1);
+title(t1,sprintf('Best Reward | rcbf = %.03f',rcbf));
 % Plot 1
 nexttile;
 scatter3(xobs, yk1, yk2);
-title('Path Distance');
+subtitle(sprintf('Best Paramemters'));
 xlabel("Obs(m)"); ylabel("k1"); zlabel("k2");
 % xlim(cbfrange);
 % ylim(cbfrange);
@@ -78,23 +80,23 @@ xlabel("Obs(m)"); ylabel("k1"); zlabel("k2");
 % Plot 2
 nexttile;
 plot(xobs,yk1);
-title('Best K1');
+subtitle('Best K1');
 xlabel("Obs(m)"); ylabel("k1");
 %xlim(cbfrange); ylim(cbfrange); zlim([0 1]);
 
 % Plot 3
 nexttile;
 plot(xobs,yk2);
-title('Best K2');
+subtitle('Best K2');
 xlabel("Obs(m)"); ylabel("k2");
 %xlim(cbfrange); ylim(cbfrange); zlim([0 1]);
 
-% Plot 4
-nexttile;
-plot(xobs,yk3);
-title('Best K3 (cbf radius)');
-xlabel("Obs(m)"); ylabel("k3");
-%xlim(cbfrange); ylim(cbfrange); zlim([0 1]);
+% % Plot 4
+% nexttile;
+% plot(xobs,yk3);
+% title('Best K3 (cbf radius)');
+% xlabel("Obs(m)"); ylabel("k3");
+% %xlim(cbfrange); ylim(cbfrange); zlim([0 1]);
 
 % Plot obstacle figs
 % figure(2);
