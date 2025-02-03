@@ -127,6 +127,8 @@ function [t_next, x0, u0, u_qp, sep_safe] = simulateTimeStep(tstep, t_now, x0, u
         u_apply = u_safe;   % if qp-cbf is enabled, use output from qp
     else
         u_apply = u_nom;    % otherwise use output from MPC only
+        u_qp = 0;
+        sep_safe = 0;
     end
 
     st = st + (tstep*f(st,u_apply));

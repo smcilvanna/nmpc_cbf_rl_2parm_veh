@@ -7,12 +7,12 @@ if firstrun
     import casadi.*
     DT = 0.1; N = 20;
     velMax = 10;
-    cbfParms = [0.1,1,1];
+    cbfParms = [1,1,1];
     obstacle = [5,5.01,0.5];
     [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,cbfParms,obstacle);
 end
 
-cbfParms = [1 ; 15 ; 0.25];
+cbfParms = [2,1,0.1];
 obs_rad = 0.5;
 simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT);
 
