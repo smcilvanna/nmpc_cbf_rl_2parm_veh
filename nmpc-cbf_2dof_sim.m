@@ -56,7 +56,7 @@ if firstrun
     [solver, args, f] = createMPCKinematicSolver(DT,N);
 end
 todaydate = datestr(datetime('today'), 'yymmdd');
-outname = sprintf("./%s_sweep_parm3_C3b.mat",todaydate);
+outname = sprintf("./%s_sweep_parm3_C3c.mat",todaydate);
 
 % >> >> >> >> >>  Test History << << << << << << 
 %sweep_parm3_B* : Parameter sweep with original vehicle mpc settings
@@ -90,10 +90,16 @@ end
 % obs = [0.5 1.5 2.5 3.5 4.5 5.5 ];       % obs = [ 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 ];
 
 %C3b
-k1 = [ 0.001, 0.01, 0.1, 0.5, 1.0, 5.0 :5.0: 70, 80 :10: 300 ];
-k2 = [ 0.001, 0.01, 0.1, 0.5, 1.0, 5.0 :5.0: 70, 80 :10: 300 ];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+% k1 = [ 0.001, 0.01, 0.1, 0.5, 1.0, 5.0 :5.0: 70, 80 :10: 300 ];
+% k2 = [ 0.001, 0.01, 0.1, 0.5, 1.0, 5.0 :5.0: 70, 80 :10: 300 ];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+% rcbf = [0.5, 1.5, 2.5 ];
+% obs = [0.5 1.5 2.5 3.5 4.5 5.5 ];       % obs = [ 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 ];
+
+%C3c
+k1 = [ 0.001, 0.01, 0.1, 0.5, 1.0, 7.5 :5.0: 70, 90 :10: 300 ];
+k2 = [ 0.001, 0.01, 0.1, 0.5, 1.0, 7.5 :5.0: 70, 90 :10: 300 ];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
 rcbf = [0.5, 1.5, 2.5 ];
-obs = [0.5 1.5 2.5 3.5 4.5 5.5 ];       % obs = [ 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 ];
+obs = [0.5 1.5 2.5 3.5 4.5 5.5 ];   
 
 testList = combinations(k1,k2,rcbf,obs);
 testList = sortrows(testList,"obs");
