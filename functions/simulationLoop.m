@@ -1,4 +1,4 @@
-function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEnable)
+function simdata = simulationLoop(solver,args,f, qpParms, obs_rad, N, DT, qpEnable)
     
     if ~exist("qpEnable","var")
         qpEnable = false;
@@ -39,7 +39,7 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEna
         sim_time_history(mpciter+1) = current_time;
         
         % Simulate Time Step                                                    tstep, t_now,           x0,            u, f, obstacle, cbfParms, r_veh
-        [current_time, current_state, control_horizon, u_qp, sep_safe] = simulateTimeStep(DT,    current_time,    current_state, u, f, obstacle, cbfParms, veh_rad, qpEnable );               % Apply the control and simulate the timestep
+        [current_time, current_state, control_horizon, u_qp, sep_safe] = simulateTimeStep(DT,    current_time,    current_state, u, f, obstacle, qpParms, veh_rad, qpEnable );               % Apply the control and simulate the timestep
         
         state_history(:,mpciter+2) = current_state;
         u_cbf_history = [u_cbf_history ; u_qp'];
@@ -79,7 +79,8 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEna
     simdata.target = target_state';
     simdata.dt = DT;
     simdata.sep = safe_sep_history;
-    simdata.cbf = cbfParms;
+    simdata.qpcbf = qpParms;
+  
     % disp(getReward(simdata));
 end
 
@@ -117,13 +118,13 @@ function nextTarget = getNextTarget(current_state, target_state)
 end
 
 %%
-function [t_next, x0, u0, u_qp, sep_safe] = simulateTimeStep(tstep, t_now, x0, u, f, obstacle, cbfParms, r_veh, qpEnable)
+function [t_next, x0, u0, u_qp, sep_safe] = simulateTimeStep(tstep, t_now, x0, u, f, obstacle, qpParms, r_veh, qpEnable)
     st = x0;                                
     eta = st(1:3);
     u_nom = u(1,:)';
 
     if qpEnable
-        [u_safe, u_qp, sep_safe] = controlBarrierFunction(t_now, obstacle, u_nom, eta, cbfParms, r_veh, tstep)   ;
+        [u_safe, u_qp, sep_safe] = controlBarrierFunction(t_now, obstacle, u_nom, eta, qpParms, r_veh, tstep)   ;
         u_apply = u_safe;   % if qp-cbf is enabled, use output from qp
     else
         u_apply = u_nom;    % otherwise use output from MPC only

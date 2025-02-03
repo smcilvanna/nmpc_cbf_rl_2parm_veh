@@ -51,10 +51,10 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,cbfParms,obsta
     J = 0;                                  % Empty Objective Function
     g = [];                                 % Empty Constraints Vector
     
-    Qx = diag([1 1 1]);                   % Horizon steps position error weighing matrix
+    Qx = diag([10 10 1]);                   % Horizon steps position error weighing matrix
     % Qv = diag([10 10 1]);                   % Horizon steps velocity error Weighing matrix
-    R = diag([1 1]);                      % Horizon steps control effort Weighing matrix
-    Q = 10^3*diag([1 1 1]);                 % Terminal state position error weight matrix
+    R = diag([0.1 0.1]);                      % Horizon steps control effort Weighing matrix
+    Q = diag([100 100 10]);                 % Terminal state position error weight matrix
     
     st = X(:,1); % Initial State    {st:3x1}
     
