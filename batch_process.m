@@ -18,6 +18,7 @@ addpath("./functions/");
 
 
 %% Read in all simulated data and get reward from each run
+addpath("./functions/");
 [results, resultsObs] = processResultsTable(alldata);
 fprintf("\n\nResults Table Generated.\n\n\n");
 
@@ -42,7 +43,7 @@ obsBest = [];
 
 rcbfs = unique(results.rcbf);
 rcbfn = numel(rcbfs);
-rcbf = rcbfs(2); 
+rcbf = rcbfs(3); 
 fprintf("Displaying %.3f, from the set of %.0f rcbf values tested...\n",rcbf,rcbfn);
 
 for i = 1:numel(orads)
@@ -52,7 +53,7 @@ for i = 1:numel(orads)
     % end
     ftable = results(ismembertol(results.obs_rad, obs, 1e-5),:);    % Filter for different obstacle each loop
     ftable = ftable(ismembertol(ftable.rcbf, rcbf, 1e-5),:);         % Filter all loops for one rcbf
-    [best figarray{i}] = plotResults(ftable,"off");                 % second arg hides all seperate obs plots, set "on" to show
+    [best figarray{i}] = plotResults(ftable,"on");                 % second arg hides all seperate obs plots, set "on" to show
     subtitle(sprintf("Obstacle Radius %.03f m",obs));
     % input("ENTER for next figure")
     %pause(1);
@@ -194,19 +195,7 @@ end
 
 %%
 
-    rewardout.reward = reward;
-    rewardout.rp = rp;
-    rewardout.rs = rs;
-    rewardout.rv = rv;
-    rewardout.weights = [wp ws wv];    
-    rewardout.min_sep = min_sep;
-    rewardout.optDist = optDist;
-    rewardout.pathDist = pathDist;
-    rewardout.endSep = endSep;
-    rewardout.endSepMax = maxEndSep;
-    rewardout.maxVel = maxVel;
-    rewardout.aveVel = aveVel;
-    rewardout.simtime = simtime;
+
 
 %% LOCAL FUNCTIONS
 

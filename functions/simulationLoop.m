@@ -1,4 +1,9 @@
-function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT)
+function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEnable)
+    
+    if ~exist("qpEnable","var")
+        qpEnable = false;
+    end
+
     veh_rad = 0.55;         % vehicle radius
     % Static Obstacle params`
     veh_start = [0, 0, deg2rad(45)]';
@@ -34,7 +39,7 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT)
         sim_time_history(mpciter+1) = current_time;
         
         % Simulate Time Step                                                    tstep, t_now,           x0,            u, f, obstacle, cbfParms, r_veh
-        [current_time, current_state, control_horizon, u_qp, sep_safe] = simulateTimeStep(DT,    current_time,    current_state, u, f, obstacle, cbfParms, veh_rad );               % Apply the control and simulate the timestep
+        [current_time, current_state, control_horizon, u_qp, sep_safe] = simulateTimeStep(DT,    current_time,    current_state, u, f, obstacle, cbfParms, veh_rad, qpEnable );               % Apply the control and simulate the timestep
         
         state_history(:,mpciter+2) = current_state;
         u_cbf_history = [u_cbf_history ; u_qp'];
@@ -112,17 +117,16 @@ function nextTarget = getNextTarget(current_state, target_state)
 end
 
 %%
-function [t_next, x0, u0, u_qp, sep_safe] = simulateTimeStep(tstep, t_now, x0, u, f, obstacle, cbfParms, r_veh)
+function [t_next, x0, u0, u_qp, sep_safe] = simulateTimeStep(tstep, t_now, x0, u, f, obstacle, cbfParms, r_veh, qpEnable)
     st = x0;                                
     eta = st(1:3);
-    u_nom = u(1,:)'; 
-    [u_safe, u_qp, sep_safe] = controlBarrierFunction(t_now, obstacle, u_nom, eta, cbfParms, r_veh, tstep)   ;
+    u_nom = u(1,:)';
 
-    cbfEnable = 1;
-    if cbfEnable
-        u_apply = u_safe;
+    if qpEnable
+        [u_safe, u_qp, sep_safe] = controlBarrierFunction(t_now, obstacle, u_nom, eta, cbfParms, r_veh, tstep)   ;
+        u_apply = u_safe;   % if qp-cbf is enabled, use output from qp
     else
-        u_apply = u_nom;
+        u_apply = u_nom;    % otherwise use output from MPC only
     end
 
     st = st + (tstep*f(st,u_apply));

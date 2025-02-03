@@ -1,10 +1,31 @@
-function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax)
+function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,cbfParms,obstacle)
 %%% createMPCKinematicSolver - create the mpc optimisation objects 
     import casadi.*
-    if nargin < 3       % set default max linear velocity if not passed as arguement
+    cbfEnable = false;  % default to no CBF, will be set true if parameters are passed
+    if nargin == 2       % set default max linear velocity if not passed as arguement
+        fprintf("\n\nOnly 2 input args to create-solver-function provided.\nMax-vehicle-velocity set as 10.\nNO CBF!!\n\n");
         velMax = 10;
     end
+    
+    if exist("cbfParms","var")
+        if numel(cbfParms) ~= 3     % check cbf parameters are correct
+            fprintf("CBF parameters in arg4 not correct!");
+            return
+        else
+            cbfEnable = true;
+            cbfk1 = cbfParms(1);
+            cbfk2 = cbfParms(2);
+            cbf_d = cbfParms(3);
 
+            if numel(obstacle) ~=3      % check the obstacle definition is correct
+                fprintf("Obstacle definition in arg5 not correct!");
+                return
+            end
+        end
+    end
+
+
+    vrad = 0.55;
     x = SX.sym('x');        
     y = SX.sym('y');        
     yaw = SX.sym('yaw');
@@ -35,10 +56,11 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax)
     R = diag([1 1]);                      % Horizon steps control effort Weighing matrix
     Q = 10^3*diag([1 1 1]);                 % Terminal state position error weight matrix
     
-    st = X(:,1); % Initial State
+    st = X(:,1); % Initial State    {st:3x1}
     
-    g = [g;st-P(1:3)]; % Initial Condition Constraints
+    g = [g;st-P(1:3)]; % Initial Condition Constraints {g:3x1}
     
+    % horizon state constraints
     for k = 1:N
         st = X(:,k);    % vehicle states at each horizon step
         con = T(:,k);   % vehicle controls at each horizon step
@@ -58,6 +80,18 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax)
         %g = [g;st_next-st_next_euler]; % compute constraints    
     end
     
+    % CBF constraints
+    if cbfEnable
+     opos = [obstacle(1);obstacle(2)];
+     orad = obstacle(3);
+     for k = 1:N            % if enabled, add cbf constraints        
+        vpos = [X(1,k); X(2,k)];
+        sepDist = norm(opos-vpos) - orad - vrad;                
+        b = cbfk1*(cbf_d - sepDist)^cbfk2;
+        g = [g ; b];
+     end
+    end
+
     J = J + (X(1:3,N+1)-P(4:6))'*Q*(X(1:3,N+1)-P(4:6)); % Terminal state constraint
     
     OPT_variables = [reshape(X,3*(N+1),1);reshape(T,2*N,1)];
@@ -77,6 +111,12 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax)
     % constraint for dynamic model
     args.lbg(1:n_states*(N+1)) = 0;  % Equality constraints
     args.ubg(1:n_states*(N+1)) = 0;  % Equality constraints
+    
+    % append CBF constraints for N timesteps
+    args.lbg(end+1:end+N) = 0;      % cbf constraint must be > 0
+    args.ubg(end+1:end+N) = inf;    % cbf constraint no upper bound
+    
+
     % state limits
     args.lbx(1:n_states:n_states*(N+1),1) = -10; %state x lower bound
     args.ubx(1:n_states:n_states*(N+1),1) = 30; %state x upper bound
