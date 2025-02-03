@@ -19,7 +19,7 @@ function simdata = simulationLoop(solver,args,f, qpParms, obs_rad, N, DT, qpEnab
     current_state = veh_start;        % Set condition.
     target_state = goal;                            % Reference posture.
     state_history(:,1) = current_state;             % append this array at each step with current state
-    time_limit = 80;                                % Maximum simulation time (seconds)
+    time_limit = 30;                                % Maximum simulation time (seconds)
     sim_time_history(1) = current_time;             % append this array at each step with sim time
     
     control_horizon = zeros(N,2);                   % Controls for N horizon steps
@@ -29,7 +29,7 @@ function simdata = simulationLoop(solver,args,f, qpParms, obs_rad, N, DT, qpEnab
     % main_loop = tic;
     while(norm((current_state(1:3)-target_state),2) > 0.1 && mpciter < time_limit / DT)
         pathTarget = target_state; %getNextTarget(current_state, target_state);
-        args.p   = [current_state;pathTarget];                                         % p : parameter vector 9x1 [initial state ; target state]
+        args.p   = [current_state;pathTarget;obstacle'];                                         % p : parameter vector 9x1 [initial state ; target state]
         args.x0  = [reshape(X0',3*(N+1),1);reshape(control_horizon',2*N,1)];     % initial value of the optimization variables
         sol = solver('x0', args.x0, 'lbx', args.lbx, 'ubx', args.ubx, 'lbg', args.lbg, 'ubg', args.ubg,'p',args.p);
         u = reshape(full(sol.x(3*(N+1)+1:end))',2,N)';                  % get controls only from the solution
@@ -129,7 +129,7 @@ function [t_next, x0, u0, u_qp, sep_safe] = simulateTimeStep(tstep, t_now, x0, u
     else
         u_apply = u_nom;    % otherwise use output from MPC only
         u_qp = 0;
-        sep_safe = 0;
+        sep_safe = 999;
     end
 
     st = st + (tstep*f(st,u_apply));

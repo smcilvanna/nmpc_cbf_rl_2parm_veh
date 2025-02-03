@@ -1,19 +1,22 @@
+
+addpath("/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/functions/")
+
 %% Run for single parameter
-clear
+clear;
 firstrun = ~exist("solver","var") || ~exist("args","var") || ~exist("f","var");
 if firstrun
     clc, close all, clear all
     addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION ####          
     import casadi.*
     DT = 0.1; N = 20;
-    velMax = 10;
+    velMax = 2;
     cbfParms = [10,1,1];
-    obstacle = [5,5.01,0.5];
+    obstacle = [7.8135 ,7.7135,0.5]';
     [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,cbfParms,obstacle);
 end
 
-cbfParms = [1,2,1];
-obs_rad = 0.5;
+% cbfParms = [1,2,1];
+obs_rad = obstacle(3);
 simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT);
 
 % input("Press ENTER to continue to Plots..")

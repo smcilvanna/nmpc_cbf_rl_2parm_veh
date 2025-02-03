@@ -36,6 +36,12 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,cbfParms,obsta
     w = SX.sym('w');
     controls = [v ; w];
     n_controls = length(controls);
+
+    obs_x = SX.sym('ox');
+    obs_y = SX.sym('oy');
+    obs_r = SX.sym('or');
+    obs = [obs_x ; obs_y ;obs_r];
+
     
     dyn = [ v*cos(yaw)  ;
             v*sin(yaw)  ;
@@ -43,9 +49,9 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,cbfParms,obsta
     
     f = Function('f',{states,controls},{dyn}); % f is symbolic representation of the system dynamics
     
-    T = SX.sym('T', n_controls, N);         % 3xN Decision variables (tau) for N horizon steps
-    P = SX.sym('P', n_states + n_pos_ref);  % 9x1 Parameters [initial state ; target state]
-    X = SX.sym('X', n_states, (N+1));       % 6xN+1 System states initial then N horizon steps
+    T = SX.sym('T', n_controls, N);             % 3xN Decision variables (tau) for N horizon steps
+    P = SX.sym('P', n_states + n_pos_ref + 3);  % 9x1 Parameters [initial state ; target state ; obstacle ]
+    X = SX.sym('X', n_states, (N+1));           % 3xN+1 System states initial then N horizon steps
     % S = SX.sym('s',N,1);                    %% Slack variable
     
     J = 0;                                  % Empty Objective Function
@@ -82,8 +88,8 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,cbfParms,obsta
     
     % CBF constraints
     if cbfEnable
-     opos = [obstacle(1);obstacle(2)];
-     orad = obstacle(3);
+     opos = [P(7);P(8)];
+     orad = P(9);
      for k = 1:N            % if enabled, add cbf constraints        
         vpos = [X(1,k); X(2,k)];
         sepDist = norm(opos-vpos) - orad - vrad;                
