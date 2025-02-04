@@ -1,7 +1,17 @@
-function simdata = simulationLoop(solver,args,f, qpParms, obs_rad, N, DT, qpEnable)
+function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEnable)
     
     if ~exist("qpEnable","var")
         qpEnable = false;
+    end
+
+    if numel(cbfParms) ~= 3
+        fprintf("Error, number of cbf parameters incorrect, expected 3 got %d\n", numel(cbfParms));
+    else
+        cbfParms = reshape(cbfParms,3,1);
+    end
+
+    if numel(obs_rad) ~= 1
+        fprintf("Error, obstacle radius arg, expected 1 got %d\n", numel(obs_rad));
     end
 
     veh_rad = 0.55;         % vehicle radius
@@ -25,11 +35,22 @@ function simdata = simulationLoop(solver,args,f, qpParms, obs_rad, N, DT, qpEnab
     control_horizon = zeros(N,2);                   % Controls for N horizon steps
     X0 = repmat(current_state,1,N+1)';              % initialization of the states decision variables
     
+
+    Qx =    [10 ; 10 ; 1 ];
+    Q =     [100 ; 100 ; 10];
+    R =     [0.1 ; 0.1];
+
     % Start Simulation Loop
     % main_loop = tic;
     while(norm((current_state(1:3)-target_state),2) > 0.1 && mpciter < time_limit / DT)
-        pathTarget = target_state; %getNextTarget(current_state, target_state);
-        args.p   = [current_state;pathTarget;obstacle'];                                         % p : parameter vector 9x1 [initial state ; target state]
+
+    %               % states(3)  target(3)       obstacle    cbf     Qx(pos)     Q(terminal)     R(control)
+    % P = SX.sym('P', n_states + n_pos_ref        + 3         + 3     + 3         +   3           + 2         );  % 20x1 Parameter vector
+    %               % P(1:3)     (4:6)           (7:9)       (10:12) (13:15)     (16:18)         (19:20)
+                
+        args.p   = [current_state ; target_state ; obstacle ; cbfParms ; Qx ; Q ; R ];                                         % p : parameter vector 9x1 [initial state ; target state]
+
+        
         args.x0  = [reshape(X0',3*(N+1),1);reshape(control_horizon',2*N,1)];     % initial value of the optimization variables
         sol = solver('x0', args.x0, 'lbx', args.lbx, 'ubx', args.ubx, 'lbg', args.lbg, 'ubg', args.ubg,'p',args.p);
         u = reshape(full(sol.x(3*(N+1)+1:end))',2,N)';                  % get controls only from the solution
@@ -39,7 +60,7 @@ function simdata = simulationLoop(solver,args,f, qpParms, obs_rad, N, DT, qpEnab
         sim_time_history(mpciter+1) = current_time;
         
         % Simulate Time Step                                                    tstep, t_now,           x0,            u, f, obstacle, cbfParms, r_veh
-        [current_time, current_state, control_horizon, u_qp, sep_safe] = simulateTimeStep(DT,    current_time,    current_state, u, f, obstacle, qpParms, veh_rad, qpEnable );               % Apply the control and simulate the timestep
+        [current_time, current_state, control_horizon, u_qp, sep_safe] = simulateTimeStep(DT,    current_time,    current_state, u, f, obstacle, cbfParms, veh_rad, qpEnable );               % Apply the control and simulate the timestep
         
         state_history(:,mpciter+2) = current_state;
         u_cbf_history = [u_cbf_history ; u_qp'];
@@ -79,7 +100,7 @@ function simdata = simulationLoop(solver,args,f, qpParms, obs_rad, N, DT, qpEnab
     simdata.target = target_state';
     simdata.dt = DT;
     simdata.sep = safe_sep_history;
-    simdata.qpcbf = qpParms;
+    simdata.qpcbf = cbfParms;
   
     % disp(getReward(simdata));
 end
@@ -87,18 +108,7 @@ end
 
 
 %%
-function [obs,tgt] = setupObstacleScenario(obs_rad,veh_rad,veh_start)
-% setupObstacleScenario Set position of obstacle and goal point to maintain equal seperation across different sized obstacles
-    vx = veh_start(1);
-    vy = veh_start(2);
-    veh_yaw = veh_start(3);
-    approach_sep = 10;                                       % min distance between vehicle clearance radius and obstacle at start
-    after_sep = 10;                                          % min distance between perimiter of obstacle and goal point
-    v2oCen = veh_rad + approach_sep + obs_rad;              % centre to centre distance between vehicle start and obstacle
-    obs = [ (vx + v2oCen*cos(veh_yaw)) ,  (vy + v2oCen*sin(veh_yaw))  , obs_rad];
-    obs(2) = obs(2) - 0.1;
-    tgt = [ (obs(1) + obs_rad + after_sep*cos(veh_yaw)) , (obs(2) + obs_rad + after_sep*sin(veh_yaw)) , veh_yaw]';
-end
+
 
 %%
 function nextTarget = getNextTarget(current_state, target_state)
@@ -120,16 +130,15 @@ end
 %%
 function [t_next, x0, u0, u_qp, sep_safe] = simulateTimeStep(tstep, t_now, x0, u, f, obstacle, qpParms, r_veh, qpEnable)
     st = x0;                                
-    eta = st(1:3);
     u_nom = u(1,:)';
 
     if qpEnable
-        [u_safe, u_qp, sep_safe] = controlBarrierFunction(t_now, obstacle, u_nom, eta, qpParms, r_veh, tstep)   ;
+        [u_safe, u_qp, sep_safe] = controlBarrierFunction(t_now, obstacle, u_nom, st, qpParms, r_veh, tstep)   ;
         u_apply = u_safe;   % if qp-cbf is enabled, use output from qp
     else
         u_apply = u_nom;    % otherwise use output from MPC only
         u_qp = 0;
-        sep_safe = 999;
+        sep_safe = norm(obstacle(1:2)'-st(1:2)) - obstacle(3) - r_veh;
     end
 
     st = st + (tstep*f(st,u_apply));

@@ -2,7 +2,7 @@ function visualiseSimulation(simdata)
 
 vehicle_positions = simdata.states(1:3,:);
 solution_horiozons = simdata.solutions(:,1:3,:);
-obstacle = simdata.obstacle;
+obstacle = reshape(simdata.obstacle,1,3);
 x_ref = simdata.target;
 N = simdata.N;
 veh_radius = simdata.vrad;

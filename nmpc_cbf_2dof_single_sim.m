@@ -10,19 +10,21 @@ if firstrun
     import casadi.*
     DT = 0.1; N = 20;
     velMax = 2;
-    cbfParms = [10,1,1];
-    obstacle = [7.8135 ,7.7135,0.5]';
-    [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,cbfParms,obstacle);
+    cbfParms = [1,1,1];
+    obs_rad = 2;
+    veh_rad = 0.55;
+    [obstacle, target] = setupObstacleScenario(obs_rad,veh_rad,[0,0,deg2rad(45)]);
+    % obstacle = [1000 1000 1];
+    [solver, args, f] = createMPCKinematicSolver(DT,N,velMax);
 end
 
 % cbfParms = [1,2,1];
-obs_rad = obstacle(3);
 simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT);
 
 % input("Press ENTER to continue to Plots..")
 
-%% Plots
-visualiseSimulation(simdata)
+% Plots
+visualiseSimulation(simdata);
 %%
 fig2 = figure();
 t = tiledlayout(3, 2);

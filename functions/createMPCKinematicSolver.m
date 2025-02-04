@@ -1,4 +1,4 @@
-function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,cbfParms,obstacle)
+function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax)
 %%% createMPCKinematicSolver - create the mpc optimisation objects 
     import casadi.*
     cbfEnable = false;  % default to no CBF, will be set true if parameters are passed
@@ -37,10 +37,10 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,cbfParms,obsta
     controls = [v ; w];
     n_controls = length(controls);
 
-    obs_x = SX.sym('ox');
-    obs_y = SX.sym('oy');
-    obs_r = SX.sym('or');
-    obs = [obs_x ; obs_y ;obs_r];
+    % obs_x = SX.sym('ox');
+    % obs_y = SX.sym('oy');
+    % obs_r = SX.sym('or');
+    % obs = [obs_x ; obs_y ;obs_r];
 
     
     dyn = [ v*cos(yaw)  ;
@@ -50,7 +50,11 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,cbfParms,obsta
     f = Function('f',{states,controls},{dyn}); % f is symbolic representation of the system dynamics
     
     T = SX.sym('T', n_controls, N);             % 3xN Decision variables (tau) for N horizon steps
-    P = SX.sym('P', n_states + n_pos_ref + 3);  % 9x1 Parameters [initial state ; target state ; obstacle ]
+    
+                   % states(3)  target(3)       obstacle    cbf     Qx(pos)     Q(terminal)     R(control)
+    P = SX.sym('P', n_states + n_pos_ref        + 3         + 3     + 3         +   3           + 2         );  % 20x1 Parameter vector
+                   % P(1:3)     (4:6)           (7:9)       (10:12) (13:15)     (16:18)         (19:20)
+    
     X = SX.sym('X', n_states, (N+1));           % 3xN+1 System states initial then N horizon steps
     % S = SX.sym('s',N,1);                    %% Slack variable
     
@@ -90,10 +94,14 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,cbfParms,obsta
     if cbfEnable
      opos = [P(7);P(8)];
      orad = P(9);
+     cbfk1 = P(10);
+     cbfk2 = P(11);
+     cbf_d = P(12);
      for k = 1:N            % if enabled, add cbf constraints        
         vpos = [X(1,k); X(2,k)];
-        sepDist = norm(opos-vpos) - orad - vrad;                
-        b = cbfk1*(cbf_d - sepDist)^cbfk2;
+        sepDist = norm(opos-vpos) - orad - vrad - cbf_d;                
+        % b = cbfk1*(cbf_d - sepDist)^cbfk2;
+        b = cbfk1*sepDist^cbfk2;
         g = [g ; b];
      end
     end
@@ -106,7 +114,7 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,cbfParms,obsta
     
     opts = struct;
     opts.ipopt.max_iter = 2000;
-    opts.ipopt.print_level =0;%0,3
+    opts.ipopt.print_level =0;  %0,3
     opts.print_time = 0;
     opts.ipopt.acceptable_tol =1e-8;
     opts.ipopt.acceptable_obj_change_tol = 1e-6;
@@ -118,10 +126,11 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,cbfParms,obsta
     args.lbg(1:n_states*(N+1)) = 0;  % Equality constraints
     args.ubg(1:n_states*(N+1)) = 0;  % Equality constraints
     
-    % append CBF constraints for N timesteps
-    args.lbg(end+1:end+N) = 0;      % cbf constraint must be > 0
-    args.ubg(end+1:end+N) = inf;    % cbf constraint no upper bound
-    
+    if cbfEnable
+        % append CBF constraints for N timesteps if cbf is enabled
+        args.lbg(end+1:end+N) = 0;      % cbf constraint must be > 0
+        args.ubg(end+1:end+N) = inf;    % cbf constraint no upper bound
+    end
 
     % state limits
     args.lbx(1:n_states:n_states*(N+1),1) = -10; %state x lower bound
