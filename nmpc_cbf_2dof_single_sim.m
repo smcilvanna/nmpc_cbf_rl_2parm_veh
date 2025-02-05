@@ -10,7 +10,7 @@ if firstrun
     import casadi.*
     DT = 0.1; N = 20;
     velMax = 2;
-    cbfParms = [1,1,0];
+    cbfParms = [1,1.25,0.01];
     obs_rad = 2;
     veh_rad = 0.55;
     [obstacle, target] = setupObstacleScenario(obs_rad,veh_rad,[0,0,deg2rad(45)]);

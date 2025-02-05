@@ -101,7 +101,8 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax)
         vpos = [X(1,k); X(2,k)];
         sepDist = norm(opos-vpos) - orad - vrad - cbf_d;                
         % b = cbfk1*(cbf_d - sepDist)^cbfk2;
-        b = cbfk1*sepDist^cbfk2;
+        % b = cbfk1*sepDist^cbfk2;
+        b = cbfk1 * (1 - exp(-cbfk2 * sepDist));
         g = [g ; b];
      end
     end
