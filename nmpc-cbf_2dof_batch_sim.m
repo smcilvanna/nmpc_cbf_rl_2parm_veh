@@ -15,7 +15,7 @@ if firstrun
     [solver, args, f] = createMPCKinematicSolver(DT,N,velMax);
 end
 todaydate = datestr(datetime('today'), 'yymmdd');
-outname = sprintf("./%s_sweep_parm3_D1b.mat",todaydate);
+outname = sprintf("./%s_sweep_parm3_E1.mat",todaydate);
 
 fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname);
 input("");
@@ -26,18 +26,12 @@ if exist("testListOld","var")
     existList = true;
 end
 
-
-% %D1a
-% k1 = [0.1 :0.1: 2.0];
-% k2 = [0.5 1.0 1.5 2.0];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
-% rcbf = [0.01];
-% obs = [0.5 1.5 2.5 3.5 4.5 5.5 ];   
-
-%D1b
-k1 = [2.1 :0.2: 5.0];
+% Create test list for simulations
+%E1a (5th Feb)
+k1 = [0.01, 0.1 0.5 :0.5: 5.0];
 k2 = [0.5 1.0 1.5 2.0];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
-rcbf = [0.01];
-obs = [0.5 1.5 2.5 3.5 4.5 5.5 ];  
+rcbf = [0];
+obs = [0.5 1.5 2.5 3.5 4.5 5.5 ]; 
 
 
 testList = combinations(k1,k2,rcbf,obs);
@@ -81,13 +75,36 @@ for i = 1:size(testList,1)
         fprintf("Run %05d of %05d complete\n",i,size(testList,1))
     end
 end
+fprintf("Run %05d of %05d complete\nDONE\n\n",i,size(testList,1))
 save(outname,"alldata", "testList");
 
 
 
 
 
-%%
+%% Parameters Run History
+
+%E1a (5th Feb)
+k1 = [0.01, 0.1 0.5 :0.5: 5.0];
+k2 = [0.5 1.0 1.5 2.0];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+rcbf = [0];
+obs = [0.5 1.5 2.5 3.5 4.5 5.5 ]; 
+
+%D1b (4th Feb) - % b = cbfk1*sepDist^cbfk2; | rcbf is sepdist safety margin
+k1 = [2.1 :0.2: 5.0];
+k2 = [0.5 1.0 1.5 2.0];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+rcbf = [0.01];
+obs = [0.5 1.5 2.5 3.5 4.5 5.5 ]; 
+
+%D1a (4th Feb) - % b = cbfk1*sepDist^cbfk2;
+k1 = [0.1 :0.1: 2.0];
+k2 = [0.5 1.0 1.5 2.0];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+rcbf = [0.01];
+obs = [0.5 1.5 2.5 3.5 4.5 5.5 ];   
+
+ 
+
+
 %%
 %%
 %%
