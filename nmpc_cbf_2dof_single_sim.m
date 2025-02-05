@@ -11,7 +11,7 @@ if firstrun
     DT = 0.1; N = 20;
     velMax = 2;
     cbfParms = [1,1.25,0.01];
-    obs_rad = 2;
+    obs_rad = 1;
     veh_rad = 0.55;
     [obstacle, target] = setupObstacleScenario(obs_rad,veh_rad,[0,0,deg2rad(45)]);
     % obstacle = [1000 1000 1];
@@ -23,7 +23,7 @@ simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT);
 
 % input("Press ENTER to continue to Plots..")
 
-% Plots
+%% Plots
 visualiseSimulation(simdata);
 %%
 fig2 = figure();

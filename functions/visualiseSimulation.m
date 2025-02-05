@@ -2,7 +2,8 @@ function visualiseSimulation(simdata)
 
 vehicle_positions = simdata.states(1:3,:);
 solution_horiozons = simdata.solutions(:,1:3,:);
-obstacle = reshape(simdata.obstacle,1,3);
+obstacle  = reshape(simdata.obstacle(1:3),1,3);
+obstacle2 = reshape(simdata.obstacle(4:6),1,3);
 x_ref = simdata.target;
 N = simdata.N;
 veh_radius = simdata.vrad;
@@ -36,12 +37,16 @@ step_size = 1;
 %pause(10)
 for k = 1:step_size:size(vehicle_positions,2)-1 % go through the open loop
     % Plot SO (Static Obstacles)
-    for i = 1:size(obstacle,1)
-        x_obs_fp = obstacle(i,3)*cos(draw_ang);
-        y_obs_fp = obstacle(i,3)*sin(draw_ang);
-        plot(obstacle(i,1)+x_obs_fp, obstacle(i,2)+y_obs_fp,'k', 'LineWidth', 0.5)  % circle around SO
-        hold on
-    end
+    % main obstacle
+    x_obs_fp = obstacle(3)*cos(draw_ang);
+    y_obs_fp = obstacle(3)*sin(draw_ang);
+    plot(obstacle(1)+x_obs_fp, obstacle(2)+y_obs_fp,'k', 'LineWidth', 0.5)  % circle around SO    
+    hold on
+    % second obstacle to make gap
+    x_obs_fp2 = obstacle2(3)*cos(draw_ang);
+    y_obs_fp2 = obstacle2(3)*sin(draw_ang);
+    plot(obstacle2(1)+x_obs_fp2, obstacle2(2)+y_obs_fp2,'g', 'LineWidth', 0.5)  % circle around SO    
+
     
     
     %Plot reference trajectory

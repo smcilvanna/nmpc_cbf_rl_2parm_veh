@@ -36,7 +36,7 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax)
     w = SX.sym('w');
     controls = [v ; w];
     n_controls = length(controls);
-
+    n_obs = 2;
     % obs_x = SX.sym('ox');
     % obs_y = SX.sym('oy');
     % obs_r = SX.sym('or');
@@ -51,9 +51,9 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax)
     
     T = SX.sym('T', n_controls, N);             % 3xN Decision variables (tau) for N horizon steps
     
-                   % states(3)  target(3)       obstacle    cbf     Qx(pos)     Q(terminal)     R(control)
-    P = SX.sym('P', n_states + n_pos_ref        + 3         + 3     + 3         +   3           + 2         );  % 20x1 Parameter vector
-                   % P(1:3)     (4:6)           (7:9)       (10:12) (13:15)     (16:18)         (19:20)
+                   % states(3)  target(3)       obstacles    cbf     Qx(pos)     Q(terminal)     R(control)
+    P = SX.sym('P', n_states + n_pos_ref        + 3*n_obs    + 3     + 3         +   3           + 2         );  % 20x1 Parameter vector
+                   % P(1:3)     (4:6)           (7:12)       (13:15) (16:18)     (19:21)         (22:24)
     
     X = SX.sym('X', n_states, (N+1));           % 3xN+1 System states initial then N horizon steps
     % S = SX.sym('s',N,1);                    %% Slack variable
@@ -92,18 +92,22 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax)
     
     % CBF constraints
     if cbfEnable
-     opos = [P(7);P(8)];
-     orad = P(9);
-     cbfk1 = P(10);
-     cbfk2 = P(11);
-     cbf_d = P(12);
+     opos1 = [P(7);P(8)];
+     orad1 = P(9);
+     opos2 = [P(10);P(11)];
+     orad2 = [P(12)];
+     cbfk1 = P(13);
+     cbfk2 = P(14);
+     cbf_d = P(15);
      for k = 1:N            % if enabled, add cbf constraints        
         vpos = [X(1,k); X(2,k)];
-        sepDist = norm(opos-vpos) - orad - vrad - cbf_d;                
+        sepDist1 = norm(opos1-vpos) - orad1 - vrad - cbf_d;
+        sepDist2 = norm(opos2-vpos) - orad2 - vrad - cbf_d;
         % b = cbfk1*(cbf_d - sepDist)^cbfk2;
         % b = cbfk1*sepDist^cbfk2;
-        b = cbfk1 * (1 - exp(-cbfk2 * sepDist));
-        g = [g ; b];
+        b1 = cbfk1 * (1 - exp(-cbfk2 * sepDist1));
+        b2 = cbfk1 * (1 - exp(-cbfk2 * sepDist2));
+        g = [g ; b1 ; b2];
      end
     end
 
@@ -128,9 +132,9 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax)
     args.ubg(1:n_states*(N+1)) = 0;  % Equality constraints
     
     if cbfEnable
-        % append CBF constraints for N timesteps if cbf is enabled
-        args.lbg(end+1:end+N) = 0;      % cbf constraint must be > 0
-        args.ubg(end+1:end+N) = inf;    % cbf constraint no upper bound
+        % append CBF constraints for N timesteps and n_obs Obstacles if cbf is enabled
+        args.lbg(end+1:end+N*n_obs) = 0;      % cbf constraint must be > 0
+        args.ubg(end+1:end+N*n_obs) = inf;    % cbf constraint no upper bound
     end
 
     % state limits

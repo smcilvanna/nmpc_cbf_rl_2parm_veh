@@ -17,7 +17,7 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEna
     veh_rad = 0.55;         % vehicle radius
     % Static Obstacle params`
     veh_start = [0, 0, deg2rad(45)]';
-    [obstacle, goal] = setupObstacleScenario(obs_rad,veh_rad,veh_start);    % static obstacle definintion
+    [obstacle, goal] = setupObstacleScenario(obs_rad,veh_rad,veh_start,true);    % static obstacle definintion
     
     current_time = 0;       % set initial time to zero
     mpciter = 0;            % MPC iteration counter
@@ -39,6 +39,8 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEna
     Qx =    [10 ; 10 ; 1 ];
     Q =     [100 ; 100 ; 10];
     R =     [0.1 ; 0.1];
+
+    obstacle = reshape(obstacle,6,1);
 
     % Start Simulation Loop
     % main_loop = tic;
