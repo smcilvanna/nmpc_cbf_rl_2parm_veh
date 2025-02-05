@@ -100,7 +100,7 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEna
     simdata.target = target_state';
     simdata.dt = DT;
     simdata.sep = safe_sep_history;
-    simdata.qpcbf = cbfParms;
+    simdata.cbf = cbfParms;
   
     % disp(getReward(simdata));
 end

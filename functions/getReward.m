@@ -1,5 +1,20 @@
-function rewardout = getReward(simdata)
+function rewardout = getReward(simdata,weights)
 % From the simdata, calculate the reward value passed to RL
+        
+    if exist("weights","var")
+        if numel(weights) ~= 3
+            fprintf("[ERROR] Need 3 element weight vector for reward function.\n[Path-Efficiency  End-Seperation  Average-Velocity]");
+            return
+        end
+    else
+        weights = [1 1 1];  % default to equal weighting
+    end
+    % Normalise weights so sum = 1
+    tw = sum(weights);  
+    wp = weights(1)/tw;
+    ws = weights(2)/tw;
+    wv = weights(3)/tw;
+
     min_sep = min(simdata.sep);
     if min_sep < 0
         reward = -1;
@@ -63,9 +78,9 @@ function rewardout = getReward(simdata)
         end
         
         rv = aveVel/maxVel;                             % Average-velocity reward
-        wp = 4/6; 
-        ws = 1/6; 
-        wv = 2/6;                   % Reward component weightings
+        % wp = 4/6; 
+        % ws = 1/6; 
+        % wv = 2/6;                   % Reward component weightings
         reward = rp*wp + rs*ws + rv*wv;                 % total reward
         
     end

@@ -19,8 +19,11 @@ addpath("./functions/");
 
 %% Read in all simulated data and get reward from each run
 addpath("./functions/");
-[results, resultsObs] = processResultsTable(alldata);
+rfWeights = [1 0 0]; % [path end-sep ave-vel]
+[results, ~] = processResultsTable(alldata);
 fprintf("\n\nResults Table Generated.\n\n\n");
+
+clearvars rfWeights
 
 %% Check test parameter ranges
 k1s = unique(results.k1);
