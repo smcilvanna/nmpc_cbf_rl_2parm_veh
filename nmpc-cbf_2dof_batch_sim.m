@@ -15,7 +15,7 @@ if firstrun
     [solver, args, f] = createMPCKinematicSolver(DT,N,velMax);
 end
 todaydate = datestr(datetime('today'), 'yymmdd');
-outname = sprintf("./%s_sweep_parm3_E1.mat",todaydate);
+outname = sprintf("./%s_sweep_parm3_E3.mat",todaydate);
 
 fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname);
 input("");
@@ -27,11 +27,11 @@ if exist("testListOld","var")
 end
 
 % Create test list for simulations
-%E1a (5th Feb)
-k1 = [0.01, 0.1 0.5 :0.5: 5.0];
-k2 = [0.5 1.0 1.5 2.0];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+%E3 (5th Feb) vmax = 10
+k1 = [1:2:50 ];
+k2 = [0.5 :0.5: 5.0];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
 rcbf = [0];
-obs = [0.5 1.5 2.5 3.5 4.5 5.5 ]; 
+obs = [10.0 ]; 
 
 
 testList = combinations(k1,k2,rcbf,obs);
@@ -83,6 +83,20 @@ save(outname,"alldata", "testList");
 
 
 %% Parameters Run History
+
+
+
+%E2 (5th Feb) : vmax=2
+k1 = [0.001 0.01, 0.1, 0.5:0.5:10 ];
+k2 = [0.1 0.5 1.0 1.5 2.0 3.0];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+rcbf = [0];
+obs = [0.5 1.0 2.0 3.0 4.0 5.0 7.5 10.0 ]; 
+
+%E1a (5th Feb)
+k1 = [0.01, 0.1 0.5 :0.5: 5.0];
+k2 = [0.5 1.0 1.5 2.0];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+rcbf = [0];
+obs = [0.5 1.5 2.5 3.5 4.5 5.5 ]; 
 
 %E1a (5th Feb)
 k1 = [0.01, 0.1 0.5 :0.5: 5.0];

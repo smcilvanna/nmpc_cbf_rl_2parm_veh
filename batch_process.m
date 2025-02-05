@@ -19,7 +19,7 @@ addpath("./functions/");
 
 %% Read in all simulated data and get reward from each run
 addpath("./functions/");
-rfWeights = [1 0 0]; % [path end-sep ave-vel]
+rfWeights = [3 1 3]; % [path end-sep ave-vel]
 [results, ~] = processResultsTable(alldata);
 fprintf("\n\nResults Table Generated.\n\n\n");
 
