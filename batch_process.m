@@ -43,7 +43,7 @@ obsBest = [];
 
 rcbfs = unique(results.rcbf);
 rcbfn = numel(rcbfs);
-rcbf = rcbfs(3); 
+rcbf = rcbfs(1); 
 fprintf("Displaying %.3f, from the set of %.0f rcbf values tested...\n",rcbf,rcbfn);
 
 for i = 1:numel(orads)

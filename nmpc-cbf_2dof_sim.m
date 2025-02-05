@@ -1,7 +1,100 @@
 cd("C:\Users\14244039\OneDrive - Queen's University Belfast\Documents\MATLAB\cbfrl\cbfrl_2param\cbf_2parm_veh")
 return
+%%
+cd("/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh");
+return
+%% >>>>>>>>>>>>>>>>>>>>>>> BATCH RUN V2 <<<<<<<<<<<<<<<<<<<<<<<<<<
+addpath("./functions/");
+firstrun = ~exist("solver","var") || ~exist("args","var") || ~exist("f","var");
+if firstrun
+    clc, close all; clearvars -except testListOld;
+    addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION ####          
+    import casadi.*
+    DT = 0.1; N = 20;
+    velMax = 2;
+    [solver, args, f] = createMPCKinematicSolver(DT,N,velMax);
+end
+todaydate = datestr(datetime('today'), 'yymmdd');
+outname = sprintf("./%s_sweep_parm3_D1b.mat",todaydate);
 
-%% >>>>>>>>>>>>>>>>>>>>>>> BATCH RUN <<<<<<<<<<<<<<<<<<<<<<<<<<
+fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname);
+input("");
+existList = false;
+if exist("testListOld","var")
+    fprintf("\n\nThere is an existing test list, will ignore existing tests...\n\nENTER to begin simulations...\n\n");
+    input("");
+    existList = true;
+end
+
+
+% %D1a
+% k1 = [0.1 :0.1: 2.0];
+% k2 = [0.5 1.0 1.5 2.0];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+% rcbf = [0.01];
+% obs = [0.5 1.5 2.5 3.5 4.5 5.5 ];   
+
+%D1b
+k1 = [2.1 :0.2: 5.0];
+k2 = [0.5 1.0 1.5 2.0];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+rcbf = [0.01];
+obs = [0.5 1.5 2.5 3.5 4.5 5.5 ];  
+
+
+testList = combinations(k1,k2,rcbf,obs);
+testList = sortrows(testList,"obs");
+alldata = [];
+match_count = 0;
+
+for i = 1:size(testList,1)
+    matchTest = false;
+    
+    % Check if test has been run already, and skip if it has
+    if existList
+        for row = 1:size(testListOld,1)
+            matchTest = testList.k1(i) == testListOld.k1(row) && ...
+                        testList.k2(i) == testListOld.k2(row) && ...
+                        testList.rcbf(i) == testListOld.rcbf(row) && ...
+                        testList.obs(i) == testListOld.obs(row);
+
+            if matchTest
+                break
+            end
+        end
+    end
+
+    if matchTest
+        match_count = match_count + 1;
+        disp(fprintf("Test already run, match_count = %d",match_count));
+        continue
+    end
+
+    cbfParms = [ testList.k1(i); testList.k2(i) ; testList.rcbf(i)];
+    obs_rad = testList.obs(i);
+
+    simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT);
+    
+    alldata = [alldata ; simdata];
+    if mod(i,100)==0
+        save(outname,"alldata", "testList");
+    end
+    if mod(i,10)==0
+        fprintf("Run %05d of %05d complete\n",i,size(testList,1))
+    end
+end
+save(outname,"alldata", "testList");
+
+
+
+
+
+%%
+%%
+%%
+%%
+
+
+
+%% >>>>>>>>>>>>>>>>>>>>>>> BATCH RUN V1 <<<<<<<<<<<<<<<<<<<<<<<<<<
 addpath("./functions/");
 firstrun = ~exist("solver","var") || ~exist("args","var") || ~exist("f","var");
 if firstrun

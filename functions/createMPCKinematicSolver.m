@@ -7,23 +7,23 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax)
         velMax = 10;
     end
     
-    if exist("cbfParms","var")
-        if numel(cbfParms) ~= 3     % check cbf parameters are correct
-            fprintf("CBF parameters in arg4 not correct!");
-            return
-        else
-            cbfEnable = true;
-            cbfk1 = cbfParms(1);
-            cbfk2 = cbfParms(2);
-            cbf_d = cbfParms(3);
-
-            if numel(obstacle) ~=3      % check the obstacle definition is correct
-                fprintf("Obstacle definition in arg5 not correct!");
-                return
-            end
-        end
-    end
-
+    % if exist("cbfParms","var")
+    %     if numel(cbfParms) ~= 3     % check cbf parameters are correct
+    %         fprintf("CBF parameters in arg4 not correct!");
+    %         return
+    %     else
+    %         cbfEnable = true;
+    %         cbfk1 = cbfParms(1);
+    %         cbfk2 = cbfParms(2);
+    %         cbf_d = cbfParms(3);
+    % 
+    %         if numel(obstacle) ~=3      % check the obstacle definition is correct
+    %             fprintf("Obstacle definition in arg5 not correct!");
+    %             return
+    %         end
+    %     end
+    % end
+    cbfEnable = true;
 
     vrad = 0.55;
     x = SX.sym('x');        
