@@ -10,12 +10,12 @@ if firstrun
     clc, close all; clearvars -except testListOld;
     addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION ####          
     import casadi.*
-    DT = 0.1; N = 20;
-    velMax = 2;
+    DT = 0.1; N = 15;
+    velMax = 1;
     [solver, args, f] = createMPCKinematicSolver(DT,N,velMax);
 end
 todaydate = datestr(datetime('today'), 'yymmdd');
-outname = sprintf("./%s_sweep_parm3_E3.mat",todaydate);
+outname = sprintf("./%s_sweep_parm3_F1.mat",todaydate);
 
 fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname);
 input("");
@@ -27,12 +27,11 @@ if exist("testListOld","var")
 end
 
 % Create test list for simulations
-%E3 (5th Feb) vmax = 10
-k1 = [1:2:50 ];
-k2 = [0.5 :0.5: 5.0];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+%F1 (6th Feb) vmax = 1 N = 15
+k1 = [0.01 , 0.05 : 0.05 : 1.00];
+k2 = k1;    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
 rcbf = [0];
-obs = [10.0 ]; 
-
+obs = [0.5 1.0 3.0 5.0 7.0 10.0 ]; 
 
 testList = combinations(k1,k2,rcbf,obs);
 testList = sortrows(testList,"obs");
@@ -84,7 +83,11 @@ save(outname,"alldata", "testList");
 
 %% Parameters Run History
 
-
+%E3 (5th Feb) vmax = 10
+k1 = [1:2:50 ];
+k2 = [0.5 :0.5: 5.0];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+rcbf = [0];
+obs = [10.0 ]; 
 
 %E2 (5th Feb) : vmax=2
 k1 = [0.001 0.01, 0.1, 0.5:0.5:10 ];
