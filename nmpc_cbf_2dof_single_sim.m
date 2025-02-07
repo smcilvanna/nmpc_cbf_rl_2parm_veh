@@ -9,8 +9,8 @@ if firstrun
     addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION ####          
     import casadi.*
     DT = 0.1; N = 15;
-    velMax = 1;
-    cbfParms = [0.01,0.91,0];
+    velMax = 2;
+    cbfParms = [0.5,0.9999,0.1];
     obs_rad = 5;
     veh_rad = 0.55;
     [obstacle, target] = setupObstacleScenario(obs_rad,veh_rad,[0,0,deg2rad(45)]);

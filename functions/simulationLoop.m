@@ -75,7 +75,7 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEna
         mpciter = mpciter + 1;
 
         if sep_safe < 0
-            % disp("CRASH!!")
+            disp("CRASH!!")
             break
         end
     
