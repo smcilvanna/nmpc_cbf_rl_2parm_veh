@@ -1,30 +1,12 @@
-function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax)
+function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,nObs)
 %%% createMPCKinematicSolver - create the mpc optimisation objects 
     import casadi.*
     cbfEnable = false;  % default to no CBF, will be set true if parameters are passed
-    if nargin == 2       % set default max linear velocity if not passed as arguement
-        fprintf("\n\nOnly 2 input args to create-solver-function provided.\nMax-vehicle-velocity set as 10.\nNO CBF!!\n\n");
-        velMax = 10;
+    if nargin ~= 4       % set default max linear velocity if not passed as arguement
+        fprintf("\n\n[ERROR]: Error with input args to create MPC solver function.\n\n");
+        return
     end
     
-    % if exist("cbfParms","var")
-    %     if numel(cbfParms) ~= 3     % check cbf parameters are correct
-    %         fprintf("CBF parameters in arg4 not correct!");
-    %         return
-    %     else
-    %         cbfEnable = true;
-    %         cbfk1 = cbfParms(1);
-    %         cbfk2 = cbfParms(2);
-    %         cbf_d = cbfParms(3);
-    % 
-    %         if numel(obstacle) ~=3      % check the obstacle definition is correct
-    %             fprintf("Obstacle definition in arg5 not correct!");
-    %             return
-    %         end
-    %     end
-    % end
-    cbfEnable = true;
-
     vrad = 0.55;
     x = SX.sym('x');        
     y = SX.sym('y');        
@@ -51,12 +33,16 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax)
     
     T = SX.sym('T', n_controls, N);             % 3xN Decision variables (tau) for N horizon steps
     
-                   % states(3)  target(3)       obstacles    cbf     Qx(pos)     Q(terminal)     R(control)
-    P = SX.sym('P', n_states + n_pos_ref        + 3*n_obs    + 3     + 3         +   3           + 2         );  % 20x1 Parameter vector
-                   % P(1:3)     (4:6)           (7:12)       (13:15) (16:18)     (19:21)         (22:24)
-    
-    X = SX.sym('X', n_states, (N+1));           % 3xN+1 System states initial then N horizon steps
-    % S = SX.sym('s',N,1);                    %% Slack variable
+                   % states(3)  target(3)   nObs     obstacles    RL-parms     
+    P = SX.sym('P', n_states + n_pos_ref    +1     + 5*n_obs   + 15      );  % 32x1 Parameter vector, updated every call
+                   % P(1:3)     (4:6)       (7)     1(8:10)      (23:32) 
+                                                  % 2(11:13)
+                                                  % 3(14:16)
+                                                  % 4(17:19)
+                                                  % 5(20:22)
+
+    X = SX.sym('X', n_states, (N+1));       % 3xN+1 System states initial then N horizon steps
+    % S = SX.sym('s',N,1);                    % Slack variable
     
     J = 0;                                  % Empty Objective Function
     g = [];                                 % Empty Constraints Vector
@@ -91,39 +77,40 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax)
     end
     
     % CBF constraints
-    if cbfEnable
-        opos1 = [P(7);P(8)];
-        orad1 = P(9);
-        opos2 = [P(10);P(11)];
-        orad2 = [P(12)];
+    if nObs > 0
         cbfk1 = P(13);
         cbfk2 = P(14);
         cbf_d = P(15);
-    %  for k = 1:N            % if enabled, add cbf constraints        
-    %     vpos = [X(1,k); X(2,k)];
-    %     sepDist1 = norm(opos1-vpos) - orad1 - vrad - cbf_d;
-    %     sepDist2 = norm(opos2-vpos) - orad2 - vrad - cbf_d;
-    %     % b = cbfk1*(cbf_d - sepDist)^cbfk2;
-    %     % b = cbfk1*sepDist^cbfk2;
-    %     b1 = cbfk1 * (1 - exp(-cbfk2 * sepDist1));
-    %     b2 = cbfk1 * (1 - exp(-cbfk2 * sepDist2));
-    %     g = [g ; b1 ; b2];
-    %  end
-    % end
-        cbf_lbg = [];
-        w=1;
-        for k = 1:N
-            vpNow  = [X(1,k); X(2,k)];
-            vpNext = [X(1,k+1); X(2,k+1)];
-            h1Now = (opos1(1) - vpNow(1))^2 + (opos1(2) - vpNow(2))^2 - (orad1+vrad+cbf_d)^2;
-            h2Now = (opos2(1) - vpNow(1))^2 + (opos2(2) - vpNow(2))^2 - (orad2+vrad+cbf_d)^2;
-    
-            h1Next = (opos1(1) - vpNext(1))^2 + (opos1(2) - vpNext(2))^2 - (orad1+vrad+cbf_d)^2;
-            h2Next = (opos2(1) - vpNext(1))^2 + (opos2(2) - vpNext(2))^2 - (orad2+vrad+cbf_d)^2;
-    
-    
-            g = [g ; h1Next - w*(1-cbfk1)*h1Now ; h2Next - w*(1-cbfk2)*h2Now];
-          
+        for obs = 0:(nObs-1)
+            opos = [P(8+obs*3);P(9+obs*3)];
+            orad = P(10+obs*3);
+
+
+        %  for k = 1:N            % if enabled, add cbf constraints        
+        %     vpos = [X(1,k); X(2,k)];
+        %     sepDist1 = norm(opos1-vpos) - orad1 - vrad - cbf_d;
+        %     sepDist2 = norm(opos2-vpos) - orad2 - vrad - cbf_d;
+        %     % b = cbfk1*(cbf_d - sepDist)^cbfk2;
+        %     % b = cbfk1*sepDist^cbfk2;
+        %     b1 = cbfk1 * (1 - exp(-cbfk2 * sepDist1));
+        %     b2 = cbfk1 * (1 - exp(-cbfk2 * sepDist2));
+        %     g = [g ; b1 ; b2];
+        %  end
+        % end
+            w=1;
+            for k = 1:N
+                vpNow  = [X(1,k); X(2,k)];
+                vpNext = [X(1,k+1); X(2,k+1)];
+                h1Now = sqrt((opos1(1) - vpNow(1))^2 + (opos1(2) - vpNow(2))^2 ) - orad1+vrad+cbf_d;
+                h2Now = sqrt((opos2(1) - vpNow(1))^2 + (opos2(2) - vpNow(2))^2 ) - orad2+vrad+cbf_d;
+        
+                h1Next = sqrt(opos1(1) - vpNext(1))^2 + (opos1(2) - vpNext(2))^2 - (orad1+vrad+cbf_d)^2;
+                h2Next = (opos2(1) - vpNext(1))^2 + (opos2(2) - vpNext(2))^2 - (orad2+vrad+cbf_d)^2;
+        
+        
+                g = [g ; h1Next - 0.2*w*(1-cbfk1)*h1Now ; h2Next - 0.2*w*(1-cbfk2)*h2Now];
+              
+            end
         end
     end
     J = J + (X(1:3,N+1)-P(4:6))'*Q*(X(1:3,N+1)-P(4:6)); % Terminal state constraint
