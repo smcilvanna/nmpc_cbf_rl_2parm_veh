@@ -124,6 +124,7 @@ else
     % Static Overall Plot
 
     % Plot Obstacle 1
+    fig1 = figure(Visible="off");
     x_obs_fp = obstacle(3)*cos(draw_ang);
     y_obs_fp = obstacle(3)*sin(draw_ang);
     plot(obstacle(1)+x_obs_fp, obstacle(2)+y_obs_fp,'k', 'LineWidth', 0.5)  % circle around SO    
@@ -163,11 +164,33 @@ else
 
     fig2 = figure(2);
 
+    
     xyvels = [zeros(2,1), diff(vehicle_positions(1:2,:),1,2)/simdata.dt ];
     speed = sqrt(sum(xyvels.^2,1));
+    linvCtrl = [ 0 ; simdata.usafe(:,1)];
+    angCtrl = [ 0, ; simdata.usafe(:,2)];
     t  = 0:simdata.dt:(simdata.dt*(size(vehicle_positions,2)-1)); 
 
-    plot(t,speed,LineWidth=3,DisplayName="Linear Velocity");
+    tl = tiledlayout(3,6);
+    title(tl,"Simulation Results")
+    tl.TileSpacing = "compact";
+    tl.Padding = "compact";
+    
+    ax1 = nexttile([3 3]);
+    src_ax = findobj(fig1, 'Type', 'axes'); % Find the axes in fig1
+    copyobj(allchild(src_ax), ax1); % Copy all children of the source axes to ax1
+    close(fig1); % Close fig1 after copying
+
+    nexttile(4);
+    plot(t,speed,LineWidth=2, Color=[0.1 0.1 0.9],DisplayName="Linear Velocity");
+    hold on;
+    plot(t,linvCtrl, LineWidth=1, Color=[0.1 0.1 0.1],DisplayName="u_{v}")
+    
+    title("Linear Velocity"); ylabel("v (m/s)");
+
+    nexttile(10)
+    plot(t,angCtrl,LineWidth=2, Color=[0.8 0.1 0.1] ,DisplayName="Angular Velocity");
+    title("Angular Velocity"); xlabel("Time (seconds)"); ylabel("w (rad/s)");
 end
 
 

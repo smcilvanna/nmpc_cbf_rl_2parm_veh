@@ -40,21 +40,20 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEna
     Q =     [100 ; 100 ; 10];
     R =     [0.1 ; 0.1];
 
-    obsParms = zeros(15,1);
+    obsParms = zeros(16,1);
+    nObs = size(obstacle,2);
+    obsParms(1) = nObs;
+    obsParms(2:1+nObs*3) = reshape(obstacle,(nObs*3),1);
 
-    obsParms(1:size(obstacle,2)) = reshape(obstacle,[],1);
+    rlParms = zeros(18,1);
+    
 
     % Start Simulation Loop
     % main_loop = tic;
     while(norm((current_state(1:3)-target_state),2) > 0.1 && mpciter < time_limit / DT)
+        rlParms(1:3) = cbfParms;
+        args.p   = [current_state ; target_state ; obsParms ; rlParms ];                                         % p : parameter vector 9x1 [initial state ; target state]
 
-    %               % states(3)  target(3)       obstacle    cbf     Qx(pos)     Q(terminal)     R(control)
-    % P = SX.sym('P', n_states + n_pos_ref        + 3         + 3     + 3         +   3           + 2         );  % 20x1 Parameter vector
-    %               % P(1:3)     (4:6)           (7:9)       (10:12) (13:15)     (16:18)         (19:20)
-                
-        args.p   = [current_state ; target_state ; obsParms ; cbfParms ];                                         % p : parameter vector 9x1 [initial state ; target state]
-
-        
         args.x0  = [reshape(X0',3*(N+1),1);reshape(control_horizon',2*N,1)];     % initial value of the optimization variables
         sol = solver('x0', args.x0, 'lbx', args.lbx, 'ubx', args.ubx, 'lbg', args.lbg, 'ubg', args.ubg,'p',args.p);
         u = reshape(full(sol.x(3*(N+1)+1:end))',2,N)';                  % get controls only from the solution
