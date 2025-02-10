@@ -122,25 +122,30 @@ if ~staticPlot
     end
 else
     % Static Overall Plot
+    tl = tiledlayout(3,6);
+    title(tl,"Simulation Results")
+    tl.TileSpacing = "compact";
+    tl.Padding = "compact";
+    
+    ax1 = nexttile([3 3]);
 
     % Plot Obstacle 1
-    fig1 = figure(Visible="off");
     x_obs_fp = obstacle(3)*cos(draw_ang);
     y_obs_fp = obstacle(3)*sin(draw_ang);
-    plot(obstacle(1)+x_obs_fp, obstacle(2)+y_obs_fp,'k', 'LineWidth', 0.5)  % circle around SO    
-    hold on
+    plot(ax1,obstacle(1)+x_obs_fp, obstacle(2)+y_obs_fp,'k', 'LineWidth', 0.5)  % circle around SO    
+    hold(ax1,"on")
     % Plot Obstacle 2
     x_obs_fp2 = obstacle2(3)*cos(draw_ang);
     y_obs_fp2 = obstacle2(3)*sin(draw_ang);
-    plot(obstacle2(1)+x_obs_fp2, obstacle2(2)+y_obs_fp2,'g', 'LineWidth', 0.5)  % circle around SO    
+    plot(ax1,obstacle2(1)+x_obs_fp2, obstacle2(2)+y_obs_fp2,'g', 'LineWidth', 0.5)  % circle around SO    
 
     % Plot vehicle path 
     x1 = vehicle_positions(1,:); 
     y1 = vehicle_positions(2,:); 
-    plot(x1,y1,'r','LineWidth', 1) % plot exhibited trajectory
+    plot(ax1,x1,y1,'r','LineWidth', 1) % plot exhibited trajectory
 
     % Plot Target Point
-    scatter(x_ref(1),x_ref(2),75,[0 0.2 1],'x');
+    scatter(ax1,x_ref(1),x_ref(2),75,[0 0.2 1],'x');
 
     ylabel("y-position (m)");
     xlabel("x-position (m)");
@@ -150,47 +155,52 @@ else
     grid minor
 
     tend = size(vehicle_positions,2)*timeStep;
-    title("Mobile Robot Trajectory");
+    title(ax1,"Mobile Robot Trajectory");
     cbfk1 = simdata.cbf(1);
     cbfk2 = simdata.cbf(2);
     cbfd = simdata.cbf(3);
-    subtitle(sprintf("Runtime: %.02f | cbf [%.3f , %.3f , %.2f]",tend,cbfk1,cbfk2,cbfd));
+    subtitle(ax1,sprintf("cbf [%.3f , %.3f , %.2f]",cbfk1,cbfk2,cbfd));
     
-    ytxt = sprintf("Final Yaw %0.2f",rad2deg(vehicle_positions(3,end)));
-    text(10,1,ytxt);
+    ytxt = sprintf("Final Yaw : %0.2f\nRuntime: %.02f",rad2deg(vehicle_positions(3,end)),tend );
+    text(ax1,10,1,ytxt);
     % box on;
     % grid on;
-    drawnow
+    % drawnow
 
-    fig2 = figure(2);
+    % fig2 = figure(2);
 
+    xyvels = [zeros(2,1), diff(vehicle_positions(1:2,:),1,2)/simdata.dt ];  % calculate linear velocity from positions
+    speed = sqrt(sum(xyvels.^2,1));                                         % convert to lin vel for plot
+    linvCtrl = [ 0 ; simdata.usafe(:,1)];                                   % Linear velocity controls
+    angCtrl = [ 0, ; simdata.usafe(:,2)];                                   % Angular velocity controls
+    t  = 0:simdata.dt:(simdata.dt*(size(vehicle_positions,2)-1));           % timesteps
+
+    dlv = [0 ; diff(linvCtrl)];     % change in linvel
+    dav = [0 ; diff(angCtrl)];      % change in steering
+
+
+
+    ax2 = nexttile(4,[1 3]);
+    plot(ax2, t,speed,LineWidth=2, Color=[0.1 0.1 0.9],DisplayName="Linear Velocity");
+    hold(ax2,"on");
+    plot(ax2, t,linvCtrl, LineWidth=1, Color=[0.1 0.1 0.1],DisplayName="u_{v}")
+    title(ax2,"Linear Velocity"); ylabel("v (m/s)"); grid on
+
+    ax3 = nexttile(10,[1 3]);
+    plot(ax3, t,angCtrl,LineWidth=2, Color=[0.8 0.1 0.1] ,DisplayName="Angular Velocity");
+    title(ax3,"Angular Velocity"); ylabel("w (rad/s)"); grid on
+
+    ax4 = nexttile(16,[1 3]);
+    yyaxis left;
+    plot(ax4, t,dlv,LineWidth=2, Color=[0.1 0.1 0.9] ,DisplayName="\Delta u_v ");
+    ylabel("v (m/s^2)");
+    hold(ax4,"on");
+    yyaxis right
+    plot(ax4, t,dav,LineWidth=2, Color=[0.8 0.1 0.1] ,DisplayName="\Delta u_{\omega}");
+    ylabel("\Delta\omega (rad/s^2)");
+    legend(ax4);
+    title(ax4,"Control Changes"); xlabel("Time (seconds)")  grid on
     
-    xyvels = [zeros(2,1), diff(vehicle_positions(1:2,:),1,2)/simdata.dt ];
-    speed = sqrt(sum(xyvels.^2,1));
-    linvCtrl = [ 0 ; simdata.usafe(:,1)];
-    angCtrl = [ 0, ; simdata.usafe(:,2)];
-    t  = 0:simdata.dt:(simdata.dt*(size(vehicle_positions,2)-1)); 
-
-    tl = tiledlayout(3,6);
-    title(tl,"Simulation Results")
-    tl.TileSpacing = "compact";
-    tl.Padding = "compact";
-    
-    ax1 = nexttile([3 3]);
-    src_ax = findobj(fig1, 'Type', 'axes'); % Find the axes in fig1
-    copyobj(allchild(src_ax), ax1); % Copy all children of the source axes to ax1
-    close(fig1); % Close fig1 after copying
-
-    nexttile(4);
-    plot(t,speed,LineWidth=2, Color=[0.1 0.1 0.9],DisplayName="Linear Velocity");
-    hold on;
-    plot(t,linvCtrl, LineWidth=1, Color=[0.1 0.1 0.1],DisplayName="u_{v}")
-    
-    title("Linear Velocity"); ylabel("v (m/s)");
-
-    nexttile(10)
-    plot(t,angCtrl,LineWidth=2, Color=[0.8 0.1 0.1] ,DisplayName="Angular Velocity");
-    title("Angular Velocity"); xlabel("Time (seconds)"); ylabel("w (rad/s)");
 end
 
 
