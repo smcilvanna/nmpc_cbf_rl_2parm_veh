@@ -10,7 +10,7 @@ if firstrun
     import casadi.*
     DT = 0.1; N = 20;
     velMax = 2;
-    cbfParms = [0.1,0.1, 0.001];
+    cbfParms = [0.01, 0.01, 0.01];
     mpcParms = [10              % Qx[x+y]
                 1               % Qx[yaw]
                 0.1             % R[v]

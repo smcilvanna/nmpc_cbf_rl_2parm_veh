@@ -41,6 +41,10 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEna
     obsParms(1) = nObs;
     obsParms(2:1+nObs*3) = reshape(obstacle,(nObs*3),1);
 
+
+    %temp - fix this later, dont need to pass in cbf parms as arg, include with mpcpars for pvector
+    mpcParms(7:9) = cbfParms;
+
     % Start Simulation Loop
     % main_loop = tic;
     while(norm((current_state(1:3)-target_state),2) > 0.1 && mpciter < time_limit / DT)

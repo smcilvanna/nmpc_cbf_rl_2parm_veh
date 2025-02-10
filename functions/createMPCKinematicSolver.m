@@ -36,6 +36,9 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,nObs)
                                                   % 5(20:22)    4(26) - R[w]
                                                               % 5(27) - Q[x+y]
                                                               % 6(28) - Q[yaw]
+                                                              % 7(29) - cbfk1
+                                                              % 8(30) - cbfk2
+                                                              % 9(31) - cbfd
 
     X = SX.sym('X', n_states, (N+1));       % 3xN+1 System states initial then N horizon steps
     % S = SX.sym('s',N,1);                  % Slack variable
@@ -74,9 +77,9 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,nObs)
     
     % CBF constraints
     if nObs > 0
-        cbfk1 = P(23);
+        cbfks = [P(29) P(30)];
         % cbfk2 = P(14);
-        cbf_d = P(24);
+        cbf_d = P(31);
         for obs = 0:(nObs-1)
             opos = [P(8+obs*3);P(9+obs*3)];
             orad = P(10+obs*3);
@@ -99,7 +102,7 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,nObs)
                 stateNext = [ X(1,k+1); X(2,k+1) ];
                 hNow  = sqrt( (opos(1) - stateNow(1) )^2 + (opos(2) - stateNow(2) )^2 ) - (orad + vrad + cbf_d) ;
                 hNext = sqrt( (opos(1) - stateNext(1))^2 + (opos(2) - stateNext(2))^2 ) - (orad + vrad + cbf_d) ;
-                g = [g ; hNext - w*(1-cbfk1)*hNow ];
+                g = [g ; hNext - w*(1-cbfks(obs+1))*hNow ];
             end
         end
     end
