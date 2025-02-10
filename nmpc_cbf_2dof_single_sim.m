@@ -10,19 +10,14 @@ if firstrun
     import casadi.*
     DT = 0.1; N = 20;
     velMax = 2;
-    cbfParms = [0.2,0.3, 0.001];
-    mpcParms = [10      % Qx[x+y]
-                1      % Qx[yaw]
-                0.1
-                0.1
-                100
-                10
-                zeros(12,1)];
-
-                
-                
-                
-                ]';R[v]
+    cbfParms = [0.1,0.1, 0.001];
+    mpcParms = [10              % Qx[x+y]
+                1               % Qx[yaw]
+                0.1             % R[v]
+                0.1             % R[w]
+                100             % Q[x+y]
+                1              % Q[yaw]
+                zeros(12,1)];   % spare parms
     obs_rad = 5;
     veh_rad = 0.55;
     [obstacle, target] = setupObstacleScenario(obs_rad,veh_rad,[0,0,deg2rad(45)]);
