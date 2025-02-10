@@ -15,7 +15,7 @@ if firstrun
     veh_rad = 0.55;
     [obstacle, target] = setupObstacleScenario(obs_rad,veh_rad,[0,0,deg2rad(45)]);
     % obstacle = [1000 1000 1];
-    [solver, args, f] = createMPCKinematicSolver(DT,N,velMax);
+    [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,2);
 end
 
 % cbfParms = [1,2,1];

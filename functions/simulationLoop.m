@@ -40,7 +40,9 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEna
     Q =     [100 ; 100 ; 10];
     R =     [0.1 ; 0.1];
 
-    obstacle = reshape(obstacle,6,1);
+    obsParms = zeros(15,1);
+
+    obsParms(1:size(obstacle,2)) = reshape(obstacle,[],1);
 
     % Start Simulation Loop
     % main_loop = tic;
@@ -50,7 +52,7 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEna
     % P = SX.sym('P', n_states + n_pos_ref        + 3         + 3     + 3         +   3           + 2         );  % 20x1 Parameter vector
     %               % P(1:3)     (4:6)           (7:9)       (10:12) (13:15)     (16:18)         (19:20)
                 
-        args.p   = [current_state ; target_state ; obstacle ; cbfParms ; Qx ; Q ; R ];                                         % p : parameter vector 9x1 [initial state ; target state]
+        args.p   = [current_state ; target_state ; obsParms ; cbfParms ];                                         % p : parameter vector 9x1 [initial state ; target state]
 
         
         args.x0  = [reshape(X0',3*(N+1),1);reshape(control_horizon',2*N,1)];     % initial value of the optimization variables

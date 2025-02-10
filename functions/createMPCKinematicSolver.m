@@ -18,12 +18,6 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,nObs)
     w = SX.sym('w');
     controls = [v ; w];
     n_controls = length(controls);
-    n_obs = 2;
-    % obs_x = SX.sym('ox');
-    % obs_y = SX.sym('oy');
-    % obs_r = SX.sym('or');
-    % obs = [obs_x ; obs_y ;obs_r];
-
     
     dyn = [ v*cos(yaw)  ;
             v*sin(yaw)  ;
@@ -33,16 +27,16 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,nObs)
     
     T = SX.sym('T', n_controls, N);             % 3xN Decision variables (tau) for N horizon steps
     
-                   % states(3)  target(3)   nObs     obstacles    RL-parms     
-    P = SX.sym('P', n_states + n_pos_ref    +1     + 5*n_obs   + 15      );  % 32x1 Parameter vector, updated every call
-                   % P(1:3)     (4:6)       (7)     1(8:10)      (23:32) 
+                   % states(3)  target(3)   nObs     obstacles  RL-parms     
+    P = SX.sym('P', n_states + n_pos_ref    +1     + 15         + 18      );  % 40x1 Parameter vector, updated every call
+                   % P(1:3)     (4:6)       (7)     1(8:10)     (23:40) 
                                                   % 2(11:13)
                                                   % 3(14:16)
                                                   % 4(17:19)
                                                   % 5(20:22)
 
     X = SX.sym('X', n_states, (N+1));       % 3xN+1 System states initial then N horizon steps
-    % S = SX.sym('s',N,1);                    % Slack variable
+    % S = SX.sym('s',N,1);                  % Slack variable
     
     J = 0;                                  % Empty Objective Function
     g = [];                                 % Empty Constraints Vector
@@ -78,13 +72,12 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,nObs)
     
     % CBF constraints
     if nObs > 0
-        cbfk1 = P(13);
-        cbfk2 = P(14);
-        cbf_d = P(15);
+        cbfk1 = P(23);
+        % cbfk2 = P(14);
+        cbf_d = P(24);
         for obs = 0:(nObs-1)
             opos = [P(8+obs*3);P(9+obs*3)];
             orad = P(10+obs*3);
-
 
         %  for k = 1:N            % if enabled, add cbf constraints        
         %     vpos = [X(1,k); X(2,k)];
@@ -97,19 +90,14 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,nObs)
         %     g = [g ; b1 ; b2];
         %  end
         % end
+
             w=1;
             for k = 1:N
-                vpNow  = [X(1,k); X(2,k)];
-                vpNext = [X(1,k+1); X(2,k+1)];
-                h1Now = sqrt((opos1(1) - vpNow(1))^2 + (opos1(2) - vpNow(2))^2 ) - orad1+vrad+cbf_d;
-                h2Now = sqrt((opos2(1) - vpNow(1))^2 + (opos2(2) - vpNow(2))^2 ) - orad2+vrad+cbf_d;
-        
-                h1Next = sqrt(opos1(1) - vpNext(1))^2 + (opos1(2) - vpNext(2))^2 - (orad1+vrad+cbf_d)^2;
-                h2Next = (opos2(1) - vpNext(1))^2 + (opos2(2) - vpNext(2))^2 - (orad2+vrad+cbf_d)^2;
-        
-        
-                g = [g ; h1Next - 0.2*w*(1-cbfk1)*h1Now ; h2Next - 0.2*w*(1-cbfk2)*h2Now];
-              
+                stateNow  = [ X(1,k); X(2,k) ];
+                stateNext = [ X(1,k+1); X(2,k+1) ];
+                hNow  = sqrt( (opos(1) - stateNow(1) )^2 + (opos(2) - stateNow(2) )^2 ) - (orad + vrad + cbf_d) ;
+                hNext = sqrt( (opos(1) - stateNext(1))^2 + (opos(2) - stateNext(2))^2 ) - (orad + vrad + cbf_d) ;
+                g = [g ; hNext - w*(1-cbfk1)*hNow ];
             end
         end
     end
@@ -133,12 +121,12 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,nObs)
     args.lbg(1:n_states*(N+1)) = 0;  % Equality constraints
     args.ubg(1:n_states*(N+1)) = 0;  % Equality constraints
     
-    if cbfEnable
+    if nObs > 0
         % append CBF constraints for N timesteps and n_obs Obstacles if cbf is enabled
         % args.lbg(end+1:end+N*n_obs) = 0;      % cbf constraint must be > 0
         % args.ubg(end+1:end+N*n_obs) = inf;    % cbf constraint no upper bound
-        args.lbg(end+1:end+N*n_obs) = 0;
-        args.ubg(end+1:end+N*n_obs) = inf;
+        args.lbg(end+1:end+N*nObs) = 0;
+        args.ubg(end+1:end+N*nObs) = inf;
     end
 
     % state limits
