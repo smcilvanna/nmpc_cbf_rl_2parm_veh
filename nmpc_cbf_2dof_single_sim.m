@@ -8,10 +8,22 @@ if firstrun
     clc, close all, clear all
     addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION ####          
     import casadi.*
-    DT = 0.1; N = 10;
+    DT = 0.1; N = 20;
     velMax = 2;
-    cbfParms = [0.1,0.01, 0.001];
-    obs_rad = 0.5;
+    cbfParms = [0.2,0.3, 0.001];
+    mpcParms = [10      % Qx[x+y]
+                1      % Qx[yaw]
+                0.1
+                0.1
+                100
+                10
+                zeros(12,1)];
+
+                
+                
+                
+                ]';R[v]
+    obs_rad = 5;
     veh_rad = 0.55;
     [obstacle, target] = setupObstacleScenario(obs_rad,veh_rad,[0,0,deg2rad(45)]);
     % obstacle = [1000 1000 1];
@@ -19,18 +31,20 @@ if firstrun
 end
 
 % cbfParms = [1,2,1];
-simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT);
+simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, false, mpcParms);
 
 % input("Press ENTER to continue to Plots..")
 clearvars -except simdata
 
 %% Plots (animated)
-staticPlot = false;
-visualiseSimulation(simdata, staticPlot);
+close all;
+staticPlot = false; viewOnScreen = true;
+visualiseSimulation(simdata, staticPlot,viewOnScreen);
 
 %% Plot (static)
-staticPlot= true;
-visualiseSimulation(simdata,staticPlot);
+close all; staticPlot= true; viewOnScreen = false;
+fig = visualiseSimulation(simdata,staticPlot,viewOnScreen);
+figure(fig);
 %%
 fig2 = figure();
 t = tiledlayout(3, 2);

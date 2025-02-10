@@ -1,7 +1,14 @@
-function visualiseSimulation(simdata,staticPlot)
+function fig = visualiseSimulation(simdata,staticPlot,view,alim)
+arguments
+    simdata struct
+    staticPlot logical = 0;
+    view logical = 1;
+    alim = [0 0];
+end
 
-if ~exist("staticPlot","var")
-    staticPlot = false;
+showFig='off';
+if view
+    showFig='on';
 end
 
 vehicle_positions = simdata.states(1:3,:);
@@ -12,10 +19,12 @@ x_ref = simdata.target;
 N = simdata.N;
 veh_radius = simdata.vrad;
 timeStep = simdata.dt;
+axmax = ceil(max(x_ref(1:2)));
 
 
-%% Figure setup
+% Figure setup
 fig = figure(1);
+set(fig,'Visible',showFig);
 % fig = gcf; %Current figure handle
 fig.Color = 'w';
 fig.Units = 'normalized';
@@ -24,7 +33,8 @@ fig.PaperPositionMode = 'auto';
 draw_ang=0:0.005:2*pi;               % angles for plotting circles
 
 if ~staticPlot
-    %% Animate simulation
+
+    % Animate simulation
     % Footprint of the robot
     x_robot = veh_radius*cos(draw_ang);
     y_robot = veh_radius*sin(draw_ang);
@@ -56,10 +66,12 @@ if ~staticPlot
         if size(x_ref,1) > 1
             plot(x_ref(:,1), x_ref(:,2), '--.g', 'LineWidth', 0.5)
         else 
-            xr = x_ref(1); yr = x_ref(2); thr = x_ref(3);
-            x_r = [ xr+h_t*cos(thr), xr+(w_t/2)*cos((pi/2)-thr), xr-(w_t/2)*cos((pi/2)-thr), xr+h_t*cos(thr)];
-            y_r = [ yr+h_t*sin(thr), yr-(w_t/2)*sin((pi/2)-thr), yr+(w_t/2)*sin((pi/2)-thr), yr+h_t*sin(thr)];
-            plot(x_r, y_r, 'g','linewidth',2); % plot reference
+            % xr = x_ref(1); yr = x_ref(2); thr = x_ref(3);
+            % x_r = [ xr+h_t*cos(thr), xr+(w_t/2)*cos((pi/2)-thr), xr-(w_t/2)*cos((pi/2)-thr), xr+h_t*cos(thr)];
+            % y_r = [ yr+h_t*sin(thr), yr-(w_t/2)*sin((pi/2)-thr), yr+(w_t/2)*sin((pi/2)-thr), yr+h_t*sin(thr)];
+            % plot(x_r, y_r, 'g','linewidth',2); % plot reference
+            scatter(x_ref(1),x_ref(2),75,[0 0.2 1],'x', LineWidth=2);
+
         end    
         hold on
     
@@ -101,7 +113,11 @@ if ~staticPlot
         ylabel("y-position (m)");
         xlabel("x-position (m)");
         %axis([-4 4 -1.5 6.5])
-        axis([0 18 0 18])
+        if sum(alim) == 0
+            axis([0 axmax 0 axmax])
+        else
+            axis([0 alim(1) 0 alim(2)])
+        end
         axis square
         grid minor
     
@@ -145,12 +161,16 @@ else
     plot(ax1,x1,y1,'r','LineWidth', 1) % plot exhibited trajectory
 
     % Plot Target Point
-    scatter(ax1,x_ref(1),x_ref(2),75,[0 0.2 1],'x');
+    scatter(ax1,x_ref(1),x_ref(2),75,[0 0.2 1],'x', LineWidth=2);
 
     ylabel("y-position (m)");
     xlabel("x-position (m)");
     %axis([-4 4 -1.5 6.5])
-    axis([-10 25 0 35])
+    if sum(alim) == 0
+        axis([0 axmax 0 axmax])
+    else
+        axis([0 alim(1) 0 alim(2)])
+    end
     axis square
     grid minor
 
@@ -178,7 +198,8 @@ else
     dlv = [0 ; diff(linvCtrl)];     % change in linvel
     dav = [0 ; diff(angCtrl)];      % change in steering
 
-
+    dlv_sum = sum(abs(dlv));
+    dav_sum = sum(abs(dav));
 
     ax2 = nexttile(4,[1 3]);
     plot(ax2, t,speed,LineWidth=2, Color=[0.1 0.1 0.9],DisplayName="Linear Velocity");
@@ -199,7 +220,10 @@ else
     plot(ax4, t,dav,LineWidth=2, Color=[0.8 0.1 0.1] ,DisplayName="\Delta u_{\omega}");
     ylabel("\Delta\omega (rad/s^2)");
     legend(ax4);
-    title(ax4,"Control Changes"); xlabel("Time (seconds)")  grid on
+    title(ax4,"Control Changes"); xlabel("Time (seconds)")  ; grid on
+
+    ctxt = sprintf("\\Sigma\\Deltav : %0.2f | \\Sigma\\Delta\\omega : %0.2f",dlv_sum,dav_sum);
+    subtitle(ax4,ctxt);
     
 end
 

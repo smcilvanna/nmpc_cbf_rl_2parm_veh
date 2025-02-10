@@ -1,4 +1,4 @@
-function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEnable)
+function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEnable, mpcParms)
     
     if ~exist("qpEnable","var")
         qpEnable = false;
@@ -13,6 +13,7 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEna
     if numel(obs_rad) ~= 1
         fprintf("Error, obstacle radius arg, expected 1 got %d\n", numel(obs_rad));
     end
+
 
     veh_rad = 0.55;         % vehicle radius
     % Static Obstacle params`
@@ -34,25 +35,20 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEna
     
     control_horizon = zeros(N,2);                   % Controls for N horizon steps
     X0 = repmat(current_state,1,N+1)';              % initialization of the states decision variables
-    
-
-    Qx =    [10 ; 10 ; 1 ];
-    Q =     [100 ; 100 ; 10];
-    R =     [0.1 ; 0.1];
 
     obsParms = zeros(16,1);
     nObs = size(obstacle,2);
     obsParms(1) = nObs;
     obsParms(2:1+nObs*3) = reshape(obstacle,(nObs*3),1);
 
-    rlParms = zeros(18,1);
-    
-
     % Start Simulation Loop
     % main_loop = tic;
     while(norm((current_state(1:3)-target_state),2) > 0.1 && mpciter < time_limit / DT)
-        rlParms(1:3) = cbfParms;
-        args.p   = [current_state ; target_state ; obsParms ; rlParms ];                                         % p : parameter vector 9x1 [initial state ; target state]
+        
+                      % states(3)  target(3)    nObs     obstacles  RL-parms     
+    %   P = SX.sym('P', n_states + n_pos_ref    +1     + 15         + 18      );  % 40x1 Parameter vector, updated every call
+        
+        args.p   = [current_state ; target_state ; obsParms ; mpcParms ];
 
         args.x0  = [reshape(X0',3*(N+1),1);reshape(control_horizon',2*N,1)];     % initial value of the optimization variables
         sol = solver('x0', args.x0, 'lbx', args.lbx, 'ubx', args.ubx, 'lbg', args.lbg, 'ubg', args.ubg,'p',args.p);

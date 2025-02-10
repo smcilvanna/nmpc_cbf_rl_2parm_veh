@@ -30,10 +30,12 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,nObs)
                    % states(3)  target(3)   nObs     obstacles  RL-parms     
     P = SX.sym('P', n_states + n_pos_ref    +1     + 15         + 18      );  % 40x1 Parameter vector, updated every call
                    % P(1:3)     (4:6)       (7)     1(8:10)     (23:40) 
-                                                  % 2(11:13)
-                                                  % 3(14:16)
-                                                  % 4(17:19)
-                                                  % 5(20:22)
+                                                  % 2(11:13)    1(23) - Qx[x+y]
+                                                  % 3(14:16)    2(24) - Qx[yaw]
+                                                  % 4(17:19)    3(25) - R[v]
+                                                  % 5(20:22)    4(26) - R[w]
+                                                              % 5(27) - Q[x+y]
+                                                              % 6(28) - Q[yaw]
 
     X = SX.sym('X', n_states, (N+1));       % 3xN+1 System states initial then N horizon steps
     % S = SX.sym('s',N,1);                  % Slack variable
@@ -41,10 +43,10 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,nObs)
     J = 0;                                  % Empty Objective Function
     g = [];                                 % Empty Constraints Vector
     
-    Qx = diag([10 10 1]);                   % Horizon steps position error weighing matrix
-    % Qv = diag([10 10 1]);                   % Horizon steps velocity error Weighing matrix
-    R = diag([0.1 0.1]);                      % Horizon steps control effort Weighing matrix
-    Q = diag([100 100 10]);                 % Terminal state position error weight matrix
+    Qx = diag([P(23) P(23) P(24)]);         % Horizon steps position error weighing matrix
+    % Qv = diag([10 10 1]);                 % Horizon steps velocity error Weighing matrix
+    R = diag([P(25) P(26)]);                % Horizon steps control effort Weighing matrix
+    Q = diag([P(27) P(27) P(28)]);          % Terminal state position error weight matrix
     
     st = X(:,1); % Initial State    {st:3x1}
     
