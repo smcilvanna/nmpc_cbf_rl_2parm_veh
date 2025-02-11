@@ -79,8 +79,8 @@ for i = 1:size(testList,1)
     %     disp(fprintf("Test already run, match_count = %d",match_count));
     %     continue
     % end
-    
-    cbfParms = [ testList.k1(i); testList.k2(i) ; testList.rcbf(i)];
+
+    cbfParms = [ testList.k1(i); testList.k2(i) ; testList.cbfd(i)];
     obs_rad = testList.obs(i);
     mpcParms(1:6) = table2array(testList(i,5:10));
     simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, false, mpcParms);
