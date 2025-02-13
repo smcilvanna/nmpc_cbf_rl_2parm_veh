@@ -12,14 +12,14 @@ if firstrun
     import casadi.*
     DT = 0.1; N = 15;
     velMax = 1;
-    cbfParms = [0.01, 0.01, 0.01];
-    mpcParms = [10              % Qx[x+y]
-                1               % Qx[yaw]
-                0.1             % R[v]
-                0.1             % R[w]
-                100             % Q[x+y]
-                1              % Q[yaw]
-                zeros(12,1)];   % spare parms
+    cbfParms = [0.01, 0.01, 0.01]; % [gamma-obs1, gamma-obs2, margin]
+    mpcParms = [10              % Qx[x+y]       xy tracking     (REMOVE for point tracking)
+                1               % Qx[yaw]       yaw tracking    (REMOVE for point tracking)
+                0.1             % R[v]          linear control
+                0.1             % R[w]          angular control
+                100             % Q[x+y]        terminal xy
+                1              % Q[yaw]         terminal yaw
+                zeros(12,1)];   %               spare unused parms
     obs_rad = 5;
     veh_rad = 0.55;
     [obstacle, target] = setupObstacleScenario(obs_rad,veh_rad,[0,0,deg2rad(45)]);
@@ -39,7 +39,7 @@ if exist("testListOld","var")
 end
 
 % Create test list for simulations
-%F1 (6th Feb) vmax = 1 N = 15
+%F1 (11th Feb) vmax = 1 N = 15
 k1 = [0.01 , 0.05 , 0.1 : 0.2 : 0.9, 0.99];
 k2 = k1;    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
 cbfd = [0.01];

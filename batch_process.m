@@ -196,9 +196,27 @@ end
 
 
 
-%%
+%% Plot single from alldata
 
+% i = 300;
+% i = 3000;
+% i = 30000;
+i = 33333;
+simdata = alldata(i);
 
+close all; staticPlot= true; viewOnScreen = false;
+fig = visualiseSimulation(simdata,staticPlot,viewOnScreen);
+figure(fig);
+
+%% Plot multiple from alldata to gif
+staticPlot= true; viewOnScreen = false;
+for i = 1:1000:size(alldata,1)
+    simdata = alldata(i);
+    % close(fig); 
+    fig = visualiseSimulation(simdata,staticPlot,viewOnScreen);
+    exportgraphics(fig,"/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/out.gif", Append=true);
+    disp(i);
+end
 
 %% LOCAL FUNCTIONS
 
