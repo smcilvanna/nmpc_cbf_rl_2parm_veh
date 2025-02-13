@@ -224,7 +224,9 @@ function [results, resultsObs] = processResultsTable(alldata)
     results = [];
     for i = 1:size(alldata,1)
         cbf = alldata(i).cbf;
-        obs = alldata(i).obstacle(3);
+        mpcParms = alldata(i).mpcParms(1:6);
+        obs1 = alldata(i).obstacle(3,1);
+        obs2 = alldata(i).obstacle(3,2); 
         rewardout = getReward(alldata(i));
         reward = rewardout.reward;
         dist = rewardout.pathDist;
@@ -235,8 +237,8 @@ function [results, resultsObs] = processResultsTable(alldata)
         maxVel = rewardout.maxVel;
         stime = rewardout.simtime;
 
-        results = [results ; array2table(   [cbf',            obs,      reward,  dist,      opdst,        fsep,       msep      aveVel,     maxVel,     stime], ...
-                            "VariableNames",["k1","k2","rcbf","obs_rad","reward","pathDist","optimalDist","finishSep","minSep", "aveVel",   "maxVel",   "simTime"])];
+        results = [results ; array2table(   [cbf',                  mpcParms',                                   obs1,   obs2,       reward,     dist,       opdst,        fsep,       msep      aveVel,     maxVel,     stime], ...
+                            "VariableNames",["k1","k2","rcbf",      "Qx-xy","Qx-w","R-v","R-w","Q-xy","Q-w",    "orad1","orad2",    "reward",   "pathDist", "optimalDist","finishSep","minSep", "aveVel",   "maxVel",   "simTime"])];
         if mod(i,1000)==0
             disp(i)
         end
@@ -245,11 +247,12 @@ function [results, resultsObs] = processResultsTable(alldata)
     
     % Split Results into cell array of tables (1 table per obstacle)
     close all;
-    orads = unique(results.obs_rad);
-    for i = 1:numel(orads)
-        resultsObs{i,1} = results(ismembertol(results.obs_rad, orads(i), 1e-5),:);
-        resultsObs{i,2} = orads(i);
-    end
+    % orads = unique(results.obs_rad);
+    % for i = 1:numel(orads)
+    %     resultsObs{i,1} = results(ismembertol(results.obs_rad, orads(i), 1e-5),:);
+    %     resultsObs{i,2} = orads(i);
+    % end
+    resultsObs = [];
 end
 
 

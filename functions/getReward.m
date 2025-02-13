@@ -14,8 +14,22 @@ function rewardout = getReward(simdata,weights)
     wp = weights(1)/tw;
     ws = weights(2)/tw;
     wv = weights(3)/tw;
+    vrad = 0.55;
 
-    min_sep = min(simdata.sep);
+    %min_sep = min(simdata.sep);
+    nObs = size(simdata.obstacle,2);
+    minseps = ones(nObs,1)*100;
+    for o = 1:nObs
+        for s = 1:size(simdata.states,2)
+            stepsep = norm(simdata.obstacle(1:2,o) - simdata.states(1:2,s)) - vrad - simdata.obstacle(3,o) ;
+            if stepsep < minseps(o)
+                minseps(o) = stepsep;
+            end
+        end
+    end
+
+    min_sep = min(minseps);
+
     if min_sep < 0
         reward = -1;
         optDist = -1;
