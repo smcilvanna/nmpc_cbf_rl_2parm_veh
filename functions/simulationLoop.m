@@ -18,7 +18,7 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEna
     veh_rad = 0.55;         % vehicle radius
     % Static Obstacle params`
     veh_start = [0, 0, deg2rad(45)]';
-    [obstacle, goal] = setupObstacleScenario(obs_rad,veh_rad,veh_start,true);    % static obstacle definintion
+    [obstacle, goal] = setupObstacleScenario(obs_rad,veh_rad,veh_start,false);    % static obstacle definintion
     
     current_time = 0;       % set initial time to zero
     mpciter = 0;            % MPC iteration counter
@@ -46,7 +46,7 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEna
     mpcParms(7:9) = cbfParms;
 
     % Start Simulation Loop
-    % main_loop = tic;
+    main_loop = tic;
     while(norm((current_state(1:3)-target_state),2) > 0.1 && mpciter < time_limit / DT)
         
                       % states(3)  target(3)    nObs     obstacles  RL-parms     
@@ -89,7 +89,7 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEna
         % end
     
     end
-    % main_loop_time = toc(main_loop);
+    main_loop_time = toc(main_loop);
     % ss_error = norm((current_state(1:2)-target_state(1:2)),2)
     % average_mpc_time = main_loop_time/(mpciter+1)
     simdata.states = state_history;
@@ -105,6 +105,7 @@ function simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, qpEna
     simdata.sep = safe_sep_history;
     simdata.cbf = cbfParms;
     simdata.mpcParms = mpcParms;
+    simdata.looptime = main_loop_time;
   
     % disp(getReward(simdata));
 end

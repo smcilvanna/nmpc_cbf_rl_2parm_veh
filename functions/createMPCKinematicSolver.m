@@ -46,7 +46,7 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,nObs)
     J = 0;                                  % Empty Objective Function
     g = [];                                 % Empty Constraints Vector
     
-    Qx = diag([P(23) P(23) P(24)]);         % Horizon steps position error weighing matrix
+    Qx = diag([P(27) P(27) P(28)]);         % Horizon steps position error weighing matrix
     % Qv = diag([10 10 1]);                 % Horizon steps velocity error Weighing matrix
     R = diag([P(25) P(26)]);                % Horizon steps control effort Weighing matrix
     Q = diag([P(27) P(27) P(28)]);          % Terminal state position error weight matrix
@@ -80,9 +80,10 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,nObs)
         cbfks = [P(29) P(30)];
         % cbfk2 = P(14);
         cbf_d = P(31);
-        for obs = 0:(nObs-1)
-            opos = [P(8+obs*3);P(9+obs*3)];
-            orad = P(10+obs*3);
+        for obs = 1:(nObs)
+            o = obs-1;
+            opos = [P(8+o*3);P(9+o*3)];
+            orad = P(10+o*3);
 
         %  for k = 1:N            % if enabled, add cbf constraints        
         %     vpos = [X(1,k); X(2,k)];
@@ -102,7 +103,7 @@ function [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,nObs)
                 stateNext = [ X(1,k+1); X(2,k+1) ];
                 hNow  = sqrt( (opos(1) - stateNow(1) )^2 + (opos(2) - stateNow(2) )^2 ) - (orad + vrad + cbf_d) ;
                 hNext = sqrt( (opos(1) - stateNext(1))^2 + (opos(2) - stateNext(2))^2 ) - (orad + vrad + cbf_d) ;
-                g = [g ; hNext - w*(1-cbfks(obs+1))*hNow ];
+                g = [g ; hNext - w*(1-cbfks(obs))*hNow ];
             end
         end
     end

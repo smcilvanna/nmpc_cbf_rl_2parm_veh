@@ -20,9 +20,9 @@ if firstrun
                 zeros(12,1)];   % spare parms
     obs_rad = 5;
     veh_rad = 0.55;
-    [obstacle, target] = setupObstacleScenario(obs_rad,veh_rad,[0,0,deg2rad(45)]);
+    [obstacle, target] = setupObstacleScenario(obs_rad,veh_rad,[0,0,deg2rad(45)],false);
     % obstacle = [1000 1000 1];
-    [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,2);
+    [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,1);
 end
 
 % cbfParms = [1,2,1];
@@ -35,6 +35,7 @@ clearvars -except simdata
 close all;
 staticPlot = false; viewOnScreen = true;
 visualiseSimulation(simdata, staticPlot,viewOnScreen);
+clearvars staticPlot viewOnScreen
 
 %% Plot (static)
 close all; staticPlot= true; viewOnScreen = false;

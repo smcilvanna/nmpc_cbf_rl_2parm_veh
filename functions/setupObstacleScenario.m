@@ -2,7 +2,7 @@ function [obs,tgt] = setupObstacleScenario(obs_rad,veh_rad,veh_start,enGap)
 % setupObstacleScenario Set position of obstacle and goal point to maintain equal seperation across different sized obstacles
     
     if ~exist("enGap","var")
-        enGap = true;
+        enGap = false;
     end
 
     vx = veh_start(1);
