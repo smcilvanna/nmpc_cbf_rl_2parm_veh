@@ -12,22 +12,22 @@ if firstrun
     import casadi.*
     DT = 0.1; N = 15;
     velMax = 1;
-    cbfParms = [0.01, 0.01, 0.01]; % [gamma-obs1, gamma-obs2, margin]
-    mpcParms = [10              % Qx[x+y]       xy tracking     (REMOVE for point tracking)
-                1               % Qx[yaw]       yaw tracking    (REMOVE for point tracking)
-                0.1             % R[v]          linear control
-                0.1             % R[w]          angular control
-                100             % Q[x+y]        terminal xy
-                1              % Q[yaw]         terminal yaw
-                zeros(12,1)];   %               spare unused parms
-    obs_rad = 5;
+    cbfParms = [-1, -1, -1]; % [gamma-obs1, gamma-obs2, margin]
+    mpcParms = [-1              % Qx[x+y]       xy tracking     (REMOVE for point tracking)
+                -1               % Qx[yaw]       yaw tracking    (REMOVE for point tracking)
+                -1             % R[v]          linear control
+                -1             % R[w]          angular control
+                -1             % Q[x+y]        terminal xy
+                -1             % Q[yaw]         terminal yaw
+                ones(12,1)*-1];   %               spare unused parms
+    obs_rad = -1;
     veh_rad = 0.55;
-    [obstacle, target] = setupObstacleScenario(obs_rad,veh_rad,[0,0,deg2rad(45)]);
+    % [obstacle, target] = setupObstacleScenario(obs_rad,veh_rad,[0,0,deg2rad(45)]);
     % obstacle = [1000 1000 1];
-    [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,2);
+    [solver, args, f] = createMPCKinematicSolver(DT,N,velMax,1);
 end
 todaydate = datestr(datetime('today'), 'yymmdd');
-outname = sprintf("./%s_sweep_parm9_A1.mat",todaydate);
+outname = sprintf("./%s_sweep_parm5_A2.mat",todaydate);
 
 fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname);
 input("");
@@ -39,19 +39,19 @@ if exist("testListOld","var")
 end
 
 % Create test list for simulations
-%F1 (11th Feb) vmax = 1 N = 15
-k1 = [0.01 , 0.05 , 0.1 : 0.2 : 0.9, 0.99];
+%parm5_A2 (13th Feb) vmax = 1 N = 15
+k1 = [0.01 0.1:0.2:0.9 0.99];
 k2 = k1;    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
 cbfd = [0.01];
 obs = [1.0 3.0 5.0 7.0 10.0 ]; 
-Qxp = [0.1 1 10 100];
-Qxw = [0.1];
-Rv = [0.1 1 10];
-Rw = [0.01 0.1 1];
-Qtx = [10 100];
-Qtw = [1 10 ];
+% Qxp = [0.1 1 10 100];
+% Qxw = [0.1];
+Rv = [0.1 1 10 100];
+Rw = [0.01 0.1 1 10];
+Qtx = [0.1 1 10 100];
+Qtw = [0.01 0.1 1 10];
 
-testList = combinations(k1,k2,cbfd,obs,Qxp,Qxw,Rv,Rw,Qtx,Qtw);
+testList = combinations(k1,cbfd,obs,Rv,Rw,Qtx,Qtw);
 testList = sortrows(testList,"obs");
 alldata = [];
 match_count = 0;
@@ -82,7 +82,7 @@ for i = 1:size(testList,1)
 
     cbfParms = [ testList.k1(i); testList.k2(i) ; testList.cbfd(i)];
     obs_rad = testList.obs(i);
-    mpcParms(1:6) = table2array(testList(i,5:10));
+    mpcParms(3:6) = table2array(testList(i,4:7));
     simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, false, mpcParms);
     alldata = [alldata ; simdata];
     if mod(i,100)==0
@@ -99,6 +99,19 @@ save(outname,"alldata", "testList");
 
 
 %% Parameters Run History
+
+
+%parm9_A1 (11th Feb) vmax = 1 N = 15
+k1 = [0.01 , 0.05 , 0.1 : 0.2 : 0.9, 0.99];
+k2 = k1;    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+cbfd = [0.01];
+obs = [1.0 3.0 5.0 7.0 10.0 ]; 
+Qxp = [0.1 1 10 100];
+Qxw = [0.1];
+Rv = [0.1 1 10];
+Rw = [0.01 0.1 1];
+Qtx = [10 100];
+Qtw = [1 10 ];
 
 %E3 (5th Feb) vmax = 10
 k1 = [1:2:50 ];
