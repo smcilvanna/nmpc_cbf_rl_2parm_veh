@@ -80,7 +80,7 @@ for i = 1:size(testList,1)
     %     continue
     % end
 
-    cbfParms = [ testList.k1(i); testList.k2(i) ; testList.cbfd(i)];
+    cbfParms = [ testList.k1(i); testList.k1(i) ; testList.cbfd(i)];
     obs_rad = testList.obs(i);
     mpcParms(3:6) = table2array(testList(i,4:7));
     simdata = simulationLoop(solver,args,f, cbfParms, obs_rad, N, DT, false, mpcParms);
