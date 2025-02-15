@@ -199,9 +199,9 @@ end
 %% Plot single from alldata
 
 % i = 300;
-% i = 8888;
+i = 8888;
 % i = 30000;
-i = 33333;
+% i = 33333;
 simdata = alldata(i);
 
 close all; staticPlot= true; viewOnScreen = false;
@@ -210,14 +210,41 @@ figure(fig);
 
 %% Plot multiple from alldata to gif
 staticPlot= true; viewOnScreen = false;
-for i = 1:1000:size(alldata,1)
+for i = 1:1:size(alldata,1)
     simdata = alldata(i);
     % close(fig); 
     fig = visualiseSimulation(simdata,staticPlot,viewOnScreen);
-    exportgraphics(fig,"/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/out.gif", Append=true);
-    disp(i);
+    exportgraphics(fig,"/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/outA2.gif", Append=true);
+    close(fig);
+    if mod(i,10)==0
+        disp(i);
+    end
 end
 
+%% Plot multiple from alldata to gif, separate by obstacle size
+staticPlot= true; viewOnScreen = false;
+allobs = [alldata.obstacle];
+allObs = unique(allobs(3,:));
+
+
+for o = allObs
+    outfile = sprintf("/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/parmSweep_obs%04.1fm.gif",o);
+
+    for i = 1:1:size(alldata,1)
+        simdata = alldata(i);
+        if simdata.obstacle(3) - o > 0.1
+            break
+        end
+        % close(fig); 
+        fig = visualiseSimulation(simdata,staticPlot,viewOnScreen);
+        exportgraphics(fig,outfile, Append=true);
+        close(fig);
+        if mod(i,10)==0
+            disp(i);
+        end
+    end
+    fprintf("Finished image for %04.1fm obstacle.\n",o);
+end
 %% LOCAL FUNCTIONS
 
 function [results, resultsObs] = processResultsTable(alldata)

@@ -29,8 +29,8 @@ function fig = visualiseSimulation(simdata,staticPlot,view,alim)
     
     
     % Figure setup
-    fig = figure(1);
-    set(fig,'Visible',showFig);
+    fig = figure(Visible=showFig);
+    % set(fig,'Visible',);
     % fig = gcf; %Current figure handle
     fig.Color = 'w';
     fig.Units = 'normalized';
@@ -180,15 +180,25 @@ function fig = visualiseSimulation(simdata,staticPlot,view,alim)
         axis square
         grid minor
     
-        tend = size(vehicle_positions,2)*timeStep;
+        tsteps = size(vehicle_positions,2) -1;
+        tend = tsteps*timeStep;
         title(ax1,"Mobile Robot Trajectory");
         cbfk1 = simdata.cbf(1);
-        cbfk2 = simdata.cbf(2);
-        cbfd = simdata.cbf(3);
-        subtitle(ax1,sprintf("cbf [%.3f , %.3f , %.2f]",cbfk1,cbfk2,cbfd));
+        mpcQxy = simdata.mpcParms(5);
+        mpcQw = simdata.mpcParms(6);
+        mpcRv = simdata.mpcParms(3);
+        mpcRw = simdata.mpcParms(4);
+        mpcN = simdata.N;
+        ltime = simdata.looptime;
+        steptime = ltime/tsteps * 1000;
+        yawend = rad2deg(vehicle_positions(3,end));
+        % cbfk2 = simdata.cbf(2);
+        % cbfd = simdata.cbf(3);
+        subtitle(ax1,sprintf("cbf_{\\gamma} [%.3f]   |   Q [%06.2f , %06.2f ,%05.2f]    R [%06.2f , %05.2f]\nN [%d] | Yaw_{end} [%05.1f]   |  EndTime [%05.2fs]  SimTime [%05.2fs]  StepTime [%05.2fms]", ...
+                                           cbfk1,           mpcQxy,  mpcQxy, mpcQw,        mpcRv,   mpcRw,      mpcN,            yawend ,              tend,             ltime,              steptime));
         
-        ytxt = sprintf("Final Yaw : %0.2f\nRuntime: %.02f",rad2deg(vehicle_positions(3,end)),tend );
-        text(ax1,10,1,ytxt);
+        % ytxt = sprintf("Final Yaw : %0.2f\nRuntime: %.02f",rad2deg(vehicle_positions(3,end)),tend );
+        % text(ax1,10,1,ytxt);
         % box on;
         % grid on;
         % drawnow
