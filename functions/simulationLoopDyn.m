@@ -142,7 +142,9 @@ function [t_next, x0, u0, u_qp, sep_safe] = simulateTimeStep(tstep, t_now, x0, u
     else
         u_apply = u_nom;    % otherwise use output from MPC only
         u_qp = 0;
-        sep_safe = norm(obstacle(1:2)'-st(1:2)) - obstacle(3) - r_veh;
+        obspos = obstacle(1:2);
+        vehpos = st(1:2);
+        sep_safe = norm(obspos - vehpos) - obstacle(3) - r_veh;
     end
 
     st = st + (tstep*f(st,u_apply));

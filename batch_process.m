@@ -40,7 +40,7 @@ clearvars k1s k2s rcbfs
 
 %% Plot Results
 close all;
-orads = unique(results.obs_rad);
+orads = unique(results.orad1);
 %fig = figure();
 obsBest = [];
 
@@ -54,7 +54,7 @@ for i = 1:numel(orads)
     % if obs == 0 || obs == 6.0
     %     break    
     % end
-    ftable = results(ismembertol(results.obs_rad, obs, 1e-5),:);    % Filter for different obstacle each loop
+    ftable = results(ismembertol(results.orad1, obs, 1e-5),:);    % Filter for different obstacle each loop
     ftable = ftable(ismembertol(ftable.rcbf, rcbf, 1e-5),:);         % Filter all loops for one rcbf
     [best figarray{i}] = plotResults(ftable,"on");                 % second arg hides all seperate obs plots, set "on" to show
     subtitle(sprintf("Obstacle Radius %.03f m",obs));
@@ -214,7 +214,7 @@ for i = 1:1:size(alldata,1)
     simdata = alldata(i);
     % close(fig); 
     fig = visualiseSimulation(simdata,staticPlot,viewOnScreen);
-    exportgraphics(fig,"/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/outA2.gif", Append=true);
+    exportgraphics(fig,"/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/out_2p_A1.gif", Append=true);
     close(fig);
     if mod(i,10)==0
         disp(i);
@@ -253,7 +253,8 @@ function [results, resultsObs] = processResultsTable(alldata)
         cbf = alldata(i).cbf;
         mpcParms = alldata(i).mpcParms(1:6);
         obs1 = alldata(i).obstacle(3,1);
-        obs2 = alldata(i).obstacle(3,2); 
+        % obs2 = alldata(i).obstacle(3,2);
+        obs2 = obs1;
         rewardout = getReward(alldata(i));
         reward = rewardout.reward;
         dist = rewardout.pathDist;
@@ -345,7 +346,7 @@ function [best, obsfig] = plotResults(ftable,show)
         show = "off";
     end
 
-    obs = unique(ftable.obs_rad);
+    obs = unique(ftable.orad1);
     if numel(obs) > 1
         disp("Error - Need 1 obstacle in table only")
         return

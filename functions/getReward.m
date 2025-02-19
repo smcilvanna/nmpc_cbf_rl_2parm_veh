@@ -21,7 +21,10 @@ function rewardout = getReward(simdata,weights)
     minseps = ones(nObs,1)*100;
     for o = 1:nObs
         for s = 1:size(simdata.states,2)
-            stepsep = norm(simdata.obstacle(1:2,o) - simdata.states(1:2,s)) - vrad - simdata.obstacle(3,o) ;
+            obspos = simdata.obstacle(1:2,o);
+            vehpos = simdata.states(1:2,s);
+            tsep = norm(obspos - vehpos);
+            stepsep =  tsep - vrad - simdata.obstacle(3,o) ;
             if stepsep < minseps(o)
                 minseps(o) = stepsep;
             end

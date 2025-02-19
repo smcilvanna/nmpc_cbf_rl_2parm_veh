@@ -16,7 +16,7 @@ if firstrun
     mpcParms(1:4) = [10 ; 1 ; 1 ; 1];   % Qx[xy yaw v w]
     mpcParms(5:6) = [10 ; 1];           % R[a alpha]
     mpcParms(7:9) = cbfParms;
-    obs_rad = 12;
+    obs_rad = 1;
     veh_rad = 0.55;
     [obstacle, target] = setupObstacleScenario(obs_rad,veh_rad,[0,0,deg2rad(45)],false);
     % obstacle = [1000 1000 1];
