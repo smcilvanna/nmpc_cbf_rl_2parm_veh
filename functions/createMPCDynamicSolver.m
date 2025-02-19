@@ -35,7 +35,15 @@ function [solver, args, f] = createMPCDynamicSolver(DT,N,velMax,accMax,nObs)
                    % target(5)  current(5)   nObs       obstacles   
     P = SX.sym('P', n_states    + n_states    +1        + 15         + 14      );  % 40x1 Parameter vector, updated every call
                    % P(1:5)     P(6:10)       P(11)     P(12:26)     (27:40) 
-                                                  
+                                                                    %1 P(27) xy tracking weight
+                                                                    %2 P(28) yaw tracking weight
+                                                                    %3 P(29) v tracking weight
+                                                                    %4 P(30) w tracking weight
+                                                                    %5 P(31) a ctrl weight
+                                                                    %6 P(32) alpha ctrl weight
+                                                                    %7 P(33) cbf_k
+                                                                    %8 P(34) cbf_alpha
+                                                                    %9 P(35) cbf_margin
 
     X = SX.sym('X', n_states, (N+1));       % 3xN+1 System states initial then N horizon steps
     T = SX.sym('T', n_controls, N);         % 3xN Decision variables (tau) for N horizon steps
@@ -122,6 +130,39 @@ function [solver, args, f] = createMPCDynamicSolver(DT,N,velMax,accMax,nObs)
     %     end
     % end
     
+    % Obstacle Avoidance Constraints (ECBF)
+    if nObs > 0
+        cbf_k = P(33);     % CBF parameter (tunable)
+        cbf_alpha = P(34); % CBF parameter (tunable)
+    
+        for obs_idx = 1:nObs
+            % Obstacle parameters
+            obs_x   = P(11 + 1 + (obs_idx-1)*4);       % Obstacle x position
+            obs_y   = P(11 + 2 + (obs_idx-1)*4);       % Obstacle y position
+            obs_rad = P(11 + 3 + (obs_idx-1)*4);     % Obstacle radius
+            obs_influence = P(17 + 4 + (obs_idx-1)*4); % Obstacle influence radius
+    
+            for k = 1:N+1 % Iterate over prediction horizon
+                % Calculate distance to obstacle
+                vehicle_x = X(1, k);
+                vehicle_y = X(2, k);
+                dist = sqrt((vehicle_x - obs_x)^2 + (vehicle_y - obs_y)^2);
+                h = dist - obs_rad - vrad - obs_influence; %h is now the safety margin
+    
+                % Exponential CBF formulation
+                % h_dot >= -cbf_k * (1 - exp(-cbf_alpha * h));
+                g = [g; h + (1/cbf_k)*log(1+h*cbf_alpha) ]; %this form is equivalent to the exponential function
+    
+                %This above equation can be derived using a taylor series approximation for the exponential function
+                %   1 - exp(-cbf_alpha * h) ≈ cbf_alpha * h
+                %Thus:
+                % h_dot >= -cbf_k * cbf_alpha * h;
+                %If cbf_k * cbf_alpha == constant, then we go back to the linear cbf constraints
+                %   h_dot >= -constant * h
+                %and h = sqrt((vehicle_x - obs_x)^2 + (vehicle_y - obs_y)^2) - obs_rad - vrad - obs_influence;
+            end
+        end
+    end
     
     OPT_variables = [ reshape(X, n_states*(N+1), 1) ; reshape(T, n_controls*N, 1) ];
     
@@ -142,12 +183,18 @@ function [solver, args, f] = createMPCDynamicSolver(DT,N,velMax,accMax,nObs)
     args.lbg(1:n_states*(N+1)) = 0;  
     args.ubg(1:n_states*(N+1)) = 0;  
     
+    % if nObs > 0
+    %     % append CBF constraints for N timesteps and n_obs Obstacles if cbf is enabled
+    %     % args.lbg(end+1:end+N*n_obs) = 0;      % cbf constraint must be > 0
+    %     % args.ubg(end+1:end+N*n_obs) = inf;    % cbf constraint no upper bound
+    %     args.lbg(end+1:end+N*nObs) = 0;
+    %     args.ubg(end+1:end+N*nObs) = inf;
+    % end
+
+    % CBF constraints (h_dot >= -gamma(h))
     if nObs > 0
-        % append CBF constraints for N timesteps and n_obs Obstacles if cbf is enabled
-        % args.lbg(end+1:end+N*n_obs) = 0;      % cbf constraint must be > 0
-        % args.ubg(end+1:end+N*n_obs) = inf;    % cbf constraint no upper bound
-        args.lbg(end+1:end+N*nObs) = 0;
-        args.ubg(end+1:end+N*nObs) = inf;
+        args.lbg(end+1:end+nObs*(N+1)) = 0; % Lower bound for CBF constraints (h_dot >= -gamma(h))
+        args.ubg(end+1:end+nObs*(N+1)) = inf; % No upper bound
     end
 
     % state limits
