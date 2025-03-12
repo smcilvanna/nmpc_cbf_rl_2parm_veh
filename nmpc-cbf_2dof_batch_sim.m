@@ -26,7 +26,7 @@ if firstrun
     [solver, args, f] = createMPCDynamicSolver(DT,N,velMax,accMax,1);
 end
 todaydate = datestr(datetime('today'), 'yymmdd');
-outname = sprintf("./%s_sweep_parm2_dyn_A1.mat",todaydate);
+outname = sprintf("./%s_sweep_parm2_dyn_A3.mat",todaydate);
 
 fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname);
 input("");
@@ -39,12 +39,14 @@ end
 
 % Create test list for simulations
 %parm5_A2 (13th Feb) vmax = 1 N = 15
-k1 = [0.01 0.1:0.2:0.9 0.99];
-k2 = [0.5 1 1.5 2 3 5 10];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ];
+k1 = [0.01 0.1:0.1:0.9 0.99];
+k2 = [ 0.1 0.5 1 1.5 2 3 5 10 50];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ]; 
 cbfd = [0.01];
 obs = [1.0 3.0 5.0 7.0 10.0 ]; 
 
 testList = combinations(k1,k2,cbfd,obs);
+clearvars k1 k2 cbfd obs
+
 testList = sortrows(testList,"obs");
 alldata = [];
 match_count = 0;

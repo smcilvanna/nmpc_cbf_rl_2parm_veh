@@ -134,20 +134,20 @@ function [solver, args, f] = createMPCDynamicSolver(DT,N,velMax,accMax,nObs)
     if nObs > 0
         cbf_k = P(33);     % CBF parameter (tunable)
         cbf_alpha = P(34); % CBF parameter (tunable)
-    
+        cbfd = P(35);
         for obs_idx = 1:nObs
             % Obstacle parameters
             obs_x   = P(11 + 1 + (obs_idx-1)*4);       % Obstacle x position
             obs_y   = P(11 + 2 + (obs_idx-1)*4);       % Obstacle y position
             obs_rad = P(11 + 3 + (obs_idx-1)*4);     % Obstacle radius
-            obs_influence = P(17 + 4 + (obs_idx-1)*4); % Obstacle influence radius
+            % obs_influence = P(17 + 4 + (obs_idx-1)*4); % Obstacle influence radius
     
             for k = 1:N+1 % Iterate over prediction horizon
                 % Calculate distance to obstacle
                 vehicle_x = X(1, k);
                 vehicle_y = X(2, k);
                 dist = sqrt((vehicle_x - obs_x)^2 + (vehicle_y - obs_y)^2);
-                h = dist - obs_rad - vrad - obs_influence; %h is now the safety margin
+                h = dist - obs_rad - vrad - cbfd; %h is now the safety margin
     
                 % Exponential CBF formulation
                 % h_dot >= -cbf_k * (1 - exp(-cbf_alpha * h));

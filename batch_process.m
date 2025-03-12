@@ -214,7 +214,7 @@ for i = 1:1:size(alldata,1)
     simdata = alldata(i);
     % close(fig); 
     fig = visualiseSimulation(simdata,staticPlot,viewOnScreen);
-    exportgraphics(fig,"/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/out_2p_A1.gif", Append=true);
+    exportgraphics(fig,"/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/out_2p_dynA3.gif", Append=true);
     close(fig);
     if mod(i,10)==0
         disp(i);
