@@ -1,5 +1,7 @@
-function simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, N, DT, qpEnable, mpcParms)
+function simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, n, DT, qpEnable, mpcParms)
     
+
+    N = 100;
     if ~exist("qpEnable","var")
         qpEnable = false;
     end
@@ -43,6 +45,7 @@ function simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, N, DT, qp
     obsParms(1) = nObs;
     obsParms(2:1+nObs*3) = reshape(obstacle,(nObs*3),1);
 
+    args = dynamicHorizon(N,n,args);    % update args for dynamic horizon
 
     % Start Simulation Loop
     main_loop = tic;
@@ -249,4 +252,23 @@ function [u_safe, u_qp, sep_safe] = controlBarrierFunction(t, obs, u_nom,eta, cb
     %     disp("lateral control error");
     % end
 
+end
+
+function args = dynamicHorizon(Nmax,n,args)
+
+    %numConstraints = size(args.lbg,2);
+    % enable horizon dynamics for n steps
+    args.lbg(6: (6+5*n) ) = 0;
+    args.ubg(6: (6+5*n) ) = 0;
+    % disable horizon dynamics for N-n steps
+    args.lbg((6+5*n):(6+5*n+5*(Nmax-n)) ) = -inf;
+    args.ubg((6+5*n):(6+5*n+5*(Nmax-n)) ) =  inf;
+
+    phi = (6+5*n+5*(Nmax-n)) + 1; % start position for obstacle constraints
+    % enable obstacle constraints for n+1 steps
+    args.lbg(phi:(phi+(n+1))) = 0;
+    args.ubg(phi:(phi+(n+1))) = inf;
+    % disable obstacle constraints for N-n steps
+    args.lbg((phi+(n+2)):end ) = -inf;
+    args.ubg((phi+(n+2)):end ) =  inf;
 end
