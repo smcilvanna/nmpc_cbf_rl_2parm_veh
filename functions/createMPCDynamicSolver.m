@@ -72,6 +72,9 @@ function [solver, args, f] = createMPCDynamicSolver(DT,Nmax,velMax,accMax,nObs)
     
     g = [g ; st - P(6:10)]; % Initial Condition Constraints {g:3x1}
     
+    n = Nmax/2;
+    dynCost = [ones(n, 1) ; zeros(n, 1)];
+
     % horizon state constraints
     for k = 1:Nmax
         st = X(:,k);    % vehicle states at each horizon step
@@ -79,7 +82,8 @@ function [solver, args, f] = createMPCDynamicSolver(DT,Nmax,velMax,accMax,nObs)
     
         % Stage cost (state error and control effort)
         %       (veh_pos - target pos)       
-        J = J + (st(1:3)-P(1:3))'*Qstage*(st(1:3)-P(1:3)) + ( st(4:5) - P(4:5) )'*Q(4:5,4:5)*( st(4:5) - P(4:5))  + con'*R*con; % calculate obj
+        % J = J + (st(1:3)-P(1:3))'*(Qstage*dynCost(k))*(st(1:3)-P(1:3)) + ( st(4:5) - P(4:5) )'*Q(4:5,4:5)*( st(4:5) - P(4:5))  + con'*R*con; % calculate obj ##OLD 
+        J = J + (st(1:3)-P(1:3))'*(Qstage*dynCost(k))*(st(1:3)-P(1:3)) + con'*(R*dynCost(k))*con; % calculate obj
 
         % System dynamics constraint (using RK4)
         st_next = X(:,k+1);
@@ -95,7 +99,8 @@ function [solver, args, f] = createMPCDynamicSolver(DT,Nmax,velMax,accMax,nObs)
     end
     
     % Terminal cost
-    J = J + (X(:,Nmax+1)-P(1:5))'*Q*(X(:,Nmax+1)-P(1:5));
+    % J = J + (X(:,Nmax+1)-P(1:5))'*Q*(X(:,Nmax+1)-P(1:5));
+    J = J + (X(:,n+1)-P(1:5))'*Q*(X(:,n+1)-P(1:5));
 
     % % CBF constraints
     % if nObs > 0

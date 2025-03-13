@@ -26,7 +26,7 @@ if firstrun
     % toc
 end
 
-n = 90;
+n = 50;
 % cbfParms = [1,2,1];
 simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, n, DT, false, mpcParms);
 
@@ -85,7 +85,7 @@ clearvars -except simdata
 %% Plots (animated)
 close all;
 staticPlot = false; viewOnScreen = true;
-visualiseSimulation(simdata90, staticPlot,viewOnScreen);
+visualiseSimulation(simdata, staticPlot,viewOnScreen);
 clearvars staticPlot viewOnScreen
 
 %% Plot (static)
