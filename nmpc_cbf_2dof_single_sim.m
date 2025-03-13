@@ -2,11 +2,10 @@
 addpath("/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/functions/")
 
 %% Run for single parameter [Dynamic Solver]
-clear;
+
 % firstrun = ~exist("solver","var") || ~exist("args","var") || ~exist("f","var");
 firstrun = true;
 if firstrun
-    clc, close all, clear all
     tStart = tic;
     addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION ####          
     import casadi.*
@@ -27,9 +26,9 @@ if firstrun
     % toc
 end
 
-N = 30;
+n = 90;
 % cbfParms = [1,2,1];
-simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, N, DT, false, mpcParms);
+simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, n, DT, false, mpcParms);
 
 
 % Print some time data about sim
@@ -45,7 +44,8 @@ fprintf(" Average loop time        : %f ms\n",steptime);
 fprintf("###########################################################\n\n")
 
 % finish
-clearvars -except simdata
+clearvars -except simdata*
+disp("Simulation Done")
 return
 
 
@@ -85,13 +85,17 @@ clearvars -except simdata
 %% Plots (animated)
 close all;
 staticPlot = false; viewOnScreen = true;
-visualiseSimulation(simdata, staticPlot,viewOnScreen);
+visualiseSimulation(simdata90, staticPlot,viewOnScreen);
 clearvars staticPlot viewOnScreen
 
 %% Plot (static)
 close all; staticPlot= true; viewOnScreen = false;
-fig = visualiseSimulation(simdata,staticPlot,viewOnScreen);
+fig = visualiseSimulation(simdata10,staticPlot,viewOnScreen);
 figure(fig);
+fig2 = visualiseSimulation(simdata50,staticPlot,viewOnScreen);
+figure(fig2);
+fig3 = visualiseSimulation(simdata90,staticPlot,viewOnScreen);
+figure(fig3);
 %%
 fig2 = figure();
 t = tiledlayout(3, 2);

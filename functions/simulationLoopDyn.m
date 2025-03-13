@@ -256,19 +256,41 @@ end
 
 function args = dynamicHorizon(Nmax,n,args)
 
-    %numConstraints = size(args.lbg,2);
+    % ADJUST LOWER AND UPPER BOUNDS DYNAMIC/SAFETY CONSTRAINTS ARGS 
     % enable horizon dynamics for n steps
-    args.lbg(6: (6+5*n) ) = 0;
-    args.ubg(6: (6+5*n) ) = 0;
+    % start1 = 6
+    end1 = (5+5*n);
+    args.lbg(6: end1 ) = 0;
+    args.ubg(6: end1 ) = 0;
     % disable horizon dynamics for N-n steps
-    args.lbg((6+5*n):(6+5*n+5*(Nmax-n)) ) = -inf;
-    args.ubg((6+5*n):(6+5*n+5*(Nmax-n)) ) =  inf;
+    start2 = end1 + 1;
+    end2   = end1 + 5*(Nmax-n);
+    args.lbg(start2:end2 ) = -inf;
+    args.ubg(start2:end2 ) =  inf;
 
-    phi = (6+5*n+5*(Nmax-n)) + 1; % start position for obstacle constraints
     % enable obstacle constraints for n+1 steps
-    args.lbg(phi:(phi+(n+1))) = 0;
-    args.ubg(phi:(phi+(n+1))) = inf;
+    start3 = end2 + 1; % start position for obstacle constraints
+    end3   = end2 + (n+1);
+    args.lbg(start3:end3) = 0;
+    args.ubg(start3:end3) = inf;
     % disable obstacle constraints for N-n steps
-    args.lbg((phi+(n+2)):end ) = -inf;
-    args.ubg((phi+(n+2)):end ) =  inf;
+    start4 = end3 + 1;
+    args.lbg(start4:end ) = -inf;
+    args.ubg(start4:end ) =  inf;
+
+
+    % ADJUST UPPER AND LOWER BOUNDS STATE/CONTROLS LIMIT ARGS
+    velMax = 2; wMax = 1; accMaxL = 5; accMaxA = 1;
+    lbons  = [-10,  -10,  -inf, -velMax, -wMax ]';
+    lboffs = [-inf, -inf, -inf, -inf,    -inf  ]';
+    ubons  = [100, 100, inf, velMax, wMax ]';
+    uboffs = [inf, inf, inf, inf,    inf  ]';
+
+    lbonc = [-accMaxL, -accMaxA]';
+    lboffc = [-inf, -inf]';
+    ubonc = [ accMaxL,  accMaxA]';
+    uboffc = [ inf,  inf]';
+
+    args.lbx = vertcat(  repmat(lbons,(n+1),1), repmat(lboffs,(Nmax-n),1), repmat(lbonc,n,1), repmat(lboffc,(Nmax-n),1) );
+    args.ubx = vertcat(  repmat(ubons,(n+1),1), repmat(uboffs,(Nmax-n),1), repmat(ubonc,n,1), repmat(uboffc,(Nmax-n),1) );
 end
