@@ -1,4 +1,4 @@
-function [solver, args, f] = createMPCDynamicSolver(DT,Nmax,velMax,accMax,nObs)
+function [solver, args, f] = createMPCDynamicSolver(DT,N,velMax,accMax,nObs)
 %%% createMPCKinematicSolver - create the mpc optimisation objects 
     import casadi.*
     cbfEnable = false;  % default to no CBF, will be set true if parameters are passed
@@ -45,8 +45,8 @@ function [solver, args, f] = createMPCDynamicSolver(DT,Nmax,velMax,accMax,nObs)
                                                                     %8 P(34) cbf_alpha
                                                                     %9 P(35) cbf_margin
 
-    X = SX.sym('X', n_states, (Nmax+1));       % 3xN+1 System states initial then N horizon steps
-    T = SX.sym('T', n_controls, Nmax);         % 3xN Decision variables (tau) for N horizon steps
+    X = SX.sym('X', n_states, (N+1));       % 3xN+1 System states initial then N horizon steps
+    T = SX.sym('T', n_controls, N);         % 3xN Decision variables (tau) for N horizon steps
     % S = SX.sym('s',N,1);                  % Slack variable
     
     J = 0;                                  % Empty Objective Function
@@ -72,18 +72,15 @@ function [solver, args, f] = createMPCDynamicSolver(DT,Nmax,velMax,accMax,nObs)
     
     g = [g ; st - P(6:10)]; % Initial Condition Constraints {g:3x1}
     
-    n = Nmax/2;
-    dynCost = [ones(n, 1) ; zeros(n, 1)];
-
     % horizon state constraints
-    for k = 1:Nmax
+    for k = 1:N
         st = X(:,k);    % vehicle states at each horizon step
         con = T(:,k);   % vehicle controls at each horizon step
     
         % Stage cost (state error and control effort)
         %       (veh_pos - target pos)       
         % J = J + (st(1:3)-P(1:3))'*(Qstage*dynCost(k))*(st(1:3)-P(1:3)) + ( st(4:5) - P(4:5) )'*Q(4:5,4:5)*( st(4:5) - P(4:5))  + con'*R*con; % calculate obj ##OLD 
-        J = J + (st(1:3)-P(1:3))'*(Qstage*dynCost(k))*(st(1:3)-P(1:3)) + con'*(R*dynCost(k))*con; % calculate obj
+        J = J + (st(1:3)-P(1:3))'*(Qstage)*(st(1:3)-P(1:3)) + con'*(R)*con; % calculate obj
 
         % System dynamics constraint (using RK4)
         st_next = X(:,k+1);
@@ -99,8 +96,8 @@ function [solver, args, f] = createMPCDynamicSolver(DT,Nmax,velMax,accMax,nObs)
     end
     
     % Terminal cost
-    % J = J + (X(:,Nmax+1)-P(1:5))'*Q*(X(:,Nmax+1)-P(1:5));
-    J = J + (X(:,n+1)-P(1:5))'*Q*(X(:,n+1)-P(1:5));
+    J = J + (X(:,N+1)-P(1:5))'*Q*(X(:,N+1)-P(1:5));
+    % J = J + (X(:,n+1)-P(1:5))'*Q*(X(:,n+1)-P(1:5));
 
     % % CBF constraints
     % if nObs > 0
@@ -147,7 +144,7 @@ function [solver, args, f] = createMPCDynamicSolver(DT,Nmax,velMax,accMax,nObs)
             obs_rad = P(11 + 3 + (obs_idx-1)*4);     % Obstacle radius
             % obs_influence = P(17 + 4 + (obs_idx-1)*4); % Obstacle influence radius
     
-            for k = 1:Nmax+1 % Iterate over prediction horizon
+            for k = 1:N+1 % Iterate over prediction horizon
                 % Calculate distance to obstacle
                 vehicle_x = X(1, k);
                 vehicle_y = X(2, k);
@@ -169,7 +166,7 @@ function [solver, args, f] = createMPCDynamicSolver(DT,Nmax,velMax,accMax,nObs)
         end
     end
     
-    OPT_variables = [ reshape(X, n_states*(Nmax+1), 1) ; reshape(T, n_controls*Nmax, 1) ];
+    OPT_variables = [ reshape(X, n_states*(N+1), 1) ; reshape(T, n_controls*N, 1) ];
     
     nlp_prob = struct('f', J, 'x', OPT_variables, 'g', g, 'p', P);
     
@@ -185,8 +182,8 @@ function [solver, args, f] = createMPCDynamicSolver(DT,Nmax,velMax,accMax,nObs)
     args = struct;
     
     % Equality constraings for dynamics
-    args.lbg(1:n_states*(Nmax+1)) = 0;  
-    args.ubg(1:n_states*(Nmax+1)) = 0;  
+    args.lbg(1:n_states*(N+1)) = 0;  
+    args.ubg(1:n_states*(N+1)) = 0;  
     
     % if nObs > 0
     %     % append CBF constraints for N timesteps and n_obs Obstacles if cbf is enabled
@@ -198,27 +195,27 @@ function [solver, args, f] = createMPCDynamicSolver(DT,Nmax,velMax,accMax,nObs)
 
     % CBF constraints (h_dot >= -gamma(h))
     if nObs > 0
-        args.lbg(end+1:end+nObs*(Nmax+1)) = 0; % Lower bound for CBF constraints (h_dot >= -gamma(h))
-        args.ubg(end+1:end+nObs*(Nmax+1)) = inf; % No upper bound
+        args.lbg(end+1:end+nObs*(N+1)) = 0; % Lower bound for CBF constraints (h_dot >= -gamma(h))
+        args.ubg(end+1:end+nObs*(N+1)) = inf; % No upper bound
     end
 
     % state limits
-    args.lbx(1:n_states:n_states*(Nmax+1),1) = -10; % x lower bound
-    args.ubx(1:n_states:n_states*(Nmax+1),1) = 100; % x upper bound
-    args.lbx(2:n_states:n_states*(Nmax+1),1) = -10; % y lower bound
-    args.ubx(2:n_states:n_states*(Nmax+1),1) = 100; % y upper bound
-    args.lbx(3:n_states:n_states*(Nmax+1),1) = -inf; % yaw lower bound
-    args.ubx(3:n_states:n_states*(Nmax+1),1) = inf;  % yaw upper bound
-    args.lbx(4:n_states:n_states*(Nmax+1),1) = -velMax;  % v lower bound
-    args.ubx(4:n_states:n_states*(Nmax+1),1) = velMax;  % v lower bound
-    args.lbx(5:n_states:n_states*(Nmax+1),1) = -1;  % w lower bound
-    args.ubx(5:n_states:n_states*(Nmax+1),1) = 1;  % w lower bound
+    args.lbx(1:n_states:n_states*(N+1),1) = -10; % x lower bound
+    args.ubx(1:n_states:n_states*(N+1),1) = 100; % x upper bound
+    args.lbx(2:n_states:n_states*(N+1),1) = -10; % y lower bound
+    args.ubx(2:n_states:n_states*(N+1),1) = 100; % y upper bound
+    args.lbx(3:n_states:n_states*(N+1),1) = -inf; % yaw lower bound
+    args.ubx(3:n_states:n_states*(N+1),1) = inf;  % yaw upper bound
+    args.lbx(4:n_states:n_states*(N+1),1) = -velMax;  % v lower bound
+    args.ubx(4:n_states:n_states*(N+1),1) = velMax;  % v lower bound
+    args.lbx(5:n_states:n_states*(N+1),1) = -1;  % w lower bound
+    args.ubx(5:n_states:n_states*(N+1),1) = 1;  % w lower bound
 
     % linear velocity control limits
-    args.lbx(n_states*(Nmax+1)+1:n_controls:n_states*(Nmax+1)+n_controls*Nmax,1) = -accMax; % linear accel lower bound
-    args.ubx(n_states*(Nmax+1)+1:n_controls:n_states*(Nmax+1)+n_controls*Nmax,1) = accMax;  % linear accel upper bound
+    args.lbx(n_states*(N+1)+1:n_controls:n_states*(N+1)+n_controls*N,1) = -accMax; % linear accel lower bound
+    args.ubx(n_states*(N+1)+1:n_controls:n_states*(N+1)+n_controls*N,1) = accMax;  % linear accel upper bound
     % angular velocity control limits
-    args.lbx(n_states*(Nmax+1)+n_controls:n_controls:n_states*(Nmax+1)+n_controls*Nmax,1) = -1; % angular accel lower bound
-    args.ubx(n_states*(Nmax+1)+n_controls:n_controls:n_states*(Nmax+1)+n_controls*Nmax,1) = 1;  % angular accel upper bound
+    args.lbx(n_states*(N+1)+n_controls:n_controls:n_states*(N+1)+n_controls*N,1) = -1; % angular accel lower bound
+    args.ubx(n_states*(N+1)+n_controls:n_controls:n_states*(N+1)+n_controls*N,1) = 1;  % angular accel upper bound
 
 end

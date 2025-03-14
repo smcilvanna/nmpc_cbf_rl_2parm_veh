@@ -9,7 +9,7 @@ if firstrun
     tStart = tic;
     addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION ####          
     import casadi.*
-    DT = 0.1; Nmax = 100;
+    DT = 0.1; N = 10;
     velMax = 2;
     accMax = 5;
     cbfParms = [0.2, 1.5, 0.01];
@@ -21,14 +21,13 @@ if firstrun
     veh_rad = 0.55;
     [obstacle, target] = setupObstacleScenario(obs_rad,veh_rad,[0,0,deg2rad(45)],false);
     % obstacle = [1000 1000 1];
-    [solver, args, f] = createMPCDynamicSolver(DT,Nmax,velMax,accMax,1);
+    [solver, args, f] = createMPCDynamicSolver(DT,N,velMax,accMax,1);
     tSolver = toc(tStart);
     % toc
 end
 
-n = 50;
 % cbfParms = [1,2,1];
-simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, n, DT, false, mpcParms);
+simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, N, DT, false, mpcParms);
 
 
 % Print some time data about sim

@@ -1,7 +1,5 @@
-function simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, n, DT, qpEnable, mpcParms)
+function simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, N, DT, qpEnable, mpcParms)
     
-
-    N = 100;
     if ~exist("qpEnable","var")
         qpEnable = false;
     end
@@ -45,7 +43,7 @@ function simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, n, DT, qp
     obsParms(1) = nObs;
     obsParms(2:1+nObs*3) = reshape(obstacle,(nObs*3),1);
 
-    args = dynamicHorizon(N,n,args);    % update args for dynamic horizon
+    % args = dynamicHorizon(N,n,args);    % update args for dynamic horizon
 
     % Start Simulation Loop
     main_loop = tic;
