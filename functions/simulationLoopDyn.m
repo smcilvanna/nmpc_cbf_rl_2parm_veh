@@ -4,7 +4,7 @@ function simdata = simulationLoopDyn(solver,args,f, settings)
     obs_rad     = settings.obs_rad;
     N           = settings.N;
     DT          = settings.DT;
-    mpcParms    = settings.mpcParms;
+    % mpcParms    = settings.mpcParms;
     veh_rad     = settings.veh_rad;         % vehicle radius
 
     if numel(cbfParms) ~= 3
@@ -105,7 +105,7 @@ function simdata = simulationLoopDyn(solver,args,f, settings)
     simdata.dt = DT;
     simdata.sep = safe_sep_history;
     simdata.cbf = cbfParms;
-    simdata.mpcParms = mpcParms;
+    % simdata.mpcParms = mpcParms;
     simdata.looptime = main_loop_time;
   
     % disp(getReward(simdata));

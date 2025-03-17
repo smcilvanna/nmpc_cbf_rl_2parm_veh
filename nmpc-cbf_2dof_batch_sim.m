@@ -7,9 +7,10 @@ return
 
 %% >>>>>>>>>>>>>>>>>>>>>>> BATCH RUN V4 Dynamic Model With 2 CBF param and dynamic N (MPC horizon) <<<<<<<<<<<<<<<<<<<<<<<<<<
 addpath("./functions/");
+addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION #### 
 import casadi.*
 
-Nvals = [10 50 100];
+Nvals = [10 50 70 100];
 settings.DT = 0.1; 
 settings.velMax = 2;
 settings.accMax = 5;
@@ -19,10 +20,52 @@ settings.mpcParms(7:9) = settings.cbfParms;
 settings.obs_rad = 1;
 settings.veh_rad = 0.55;
 
-[solverStack, args, f] = createSolvers(Nvals,settings);
+[solverStack, argsStack, f] = createSolvers(Nvals,settings);
+
+%% Temp run one sim
+
+ii = 2; settings.N = Nvals(ii);
+settings.cbfParms = [0.3, 1.5, 0.01];
+settings.obs_rad = 2;
+solver = solverStack{ii};
+args   = argsStack{ii};
+
+simdata = simulationLoopDyn(solver,args,f, settings);
+
+
+% Print some time data about sim
+tsteps = size(simdata.states(1:3,:),2) -1;
+tend = tsteps*settings.DT;
+ltime = simdata.looptime;
+steptime = ltime/tsteps * 1000;
+fprintf("\n\n###########################################################\n")
+% fprintf(" Time to create solver    : %f seconds\n",tSolver);
+fprintf(" Time Period Simulated    : %f seconds\n",tend);
+fprintf(" Simulation Time          : %f seconds\n",ltime);
+fprintf(" Average loop time        : %f ms\n",steptime);
+fprintf("###########################################################\n\n")
+
+% finish
+clearvars -except simdata* 
+disp("Simulation Done")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 %%
-
 todaydate = datestr(datetime('today'), 'yymmdd');
 outname = sprintf("./%s_sweep_parm2_dyn_A3.mat",todaydate);
 
@@ -536,28 +579,22 @@ end
 
 %%
 
-function [solverStack, args, f] = createSolvers(Nvals,settings)
-
+function [solverStack, argsStack, f] = createSolvers(Nvals,settings)
+    import casadi.*
     if size(Nvals,1) ~= 1
         disp("Error Nvals must be row vector");
         return
     end
 
     solverStack = {};
-    % DT = 0.1;
-    % velMax = 1;
-    % accMax = 5;
-    % cbfParms = [1, 1, 1]; % [gamma-obs1, gamma-obs2, margin]
-    % mpcParms = ones(14,1);
-    % mpcParms(7:9) = cbfParms;
-    % obs_rad = 1;
-    % veh_rad = 0.55;
+    argsStack = [];
 
     for i = Nvals
         settings.N = i;
         [solver, args, f] = createMPCDynamicSolver(settings);
 
         solverStack = [solverStack ; {solver}];
+        argsStack   = [argsStack ; {args}];
     
     end
 end
