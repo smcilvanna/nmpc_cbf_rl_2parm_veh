@@ -10,7 +10,16 @@ addpath("./functions/");
 import casadi.*
 
 Nvals = [10 50 100];
-[solverStack, args, f] = createSolvers(Nvals);
+settings.DT = 0.1; 
+settings.velMax = 2;
+settings.accMax = 5;
+settings.cbfParms = [0.0, 0.0, 0.0];
+settings.mpcParms = zeros(14,1);
+settings.mpcParms(7:9) = settings.cbfParms;
+settings.obs_rad = 1;
+settings.veh_rad = 0.55;
+
+[solverStack, args, f] = createSolvers(Nvals,settings);
 
 %%
 
@@ -79,6 +88,27 @@ for i = 1:size(testList,1)
 end
 fprintf("Run %05d of %05d complete\nDONE\n\n",i,size(testList,1))
 save(outname,"alldata", "testList");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+%%
+%%
+%%
+
 
 %% >>>>>>>>>>>>>>>>>>>>>>> BATCH RUN V3 Dynamic Model <<<<<<<<<<<<<<<<<<<<<<<<<<
 addpath("./functions/");
@@ -506,7 +536,7 @@ end
 
 %%
 
-function [solverStack, args, f] = createSolvers(Nvals)
+function [solverStack, args, f] = createSolvers(Nvals,settings)
 
     if size(Nvals,1) ~= 1
         disp("Error Nvals must be row vector");
@@ -514,17 +544,18 @@ function [solverStack, args, f] = createSolvers(Nvals)
     end
 
     solverStack = {};
-    DT = 0.1;
-    velMax = 1;
-    accMax = 5;
-    cbfParms = [1, 1, 1]; % [gamma-obs1, gamma-obs2, margin]
-    mpcParms = ones(14,1);
-    mpcParms(7:9) = cbfParms;
-    obs_rad = 1;
-    veh_rad = 0.55;
+    % DT = 0.1;
+    % velMax = 1;
+    % accMax = 5;
+    % cbfParms = [1, 1, 1]; % [gamma-obs1, gamma-obs2, margin]
+    % mpcParms = ones(14,1);
+    % mpcParms(7:9) = cbfParms;
+    % obs_rad = 1;
+    % veh_rad = 0.55;
 
     for i = Nvals
-        [solver, args, f] = createMPCDynamicSolver(DT,i,velMax,accMax,1);
+        settings.N = i;
+        [solver, args, f] = createMPCDynamicSolver(settings);
 
         solverStack = [solverStack ; {solver}];
     

@@ -11,13 +11,13 @@ if firstrun
     addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION ####          
     import casadi.*
     settings.DT = 0.1; 
-    settings.N = 10;
+    settings.N = 20;
     settings.velMax = 2;
     settings.accMax = 5;
-    settings.cbfParms = [0.2, 1.5, 0.01];
+    settings.cbfParms = [0.3, 1.5, 0.01];
     settings.mpcParms = ones(14,1);
     settings.mpcParms(7:9) = settings.cbfParms;
-    settings.obs_rad = 1;
+    settings.obs_rad = 2;
     settings.veh_rad = 0.55;
     [obstacle, target] = setupObstacleScenario(settings.obs_rad ,settings.veh_rad,[0,0,deg2rad(45)],false);
     % obstacle = [1000 1000 1];
@@ -95,12 +95,8 @@ clearvars staticPlot viewOnScreen
 
 %% Plot (static)
 close all; staticPlot= true; viewOnScreen = false;
-fig = visualiseSimulation(simdata10,staticPlot,viewOnScreen);
+fig = visualiseSimulation(simdata,staticPlot,viewOnScreen);
 figure(fig);
-fig2 = visualiseSimulation(simdata50,staticPlot,viewOnScreen);
-figure(fig2);
-fig3 = visualiseSimulation(simdata90,staticPlot,viewOnScreen);
-figure(fig3);
 %%
 fig2 = figure();
 t = tiledlayout(3, 2);
