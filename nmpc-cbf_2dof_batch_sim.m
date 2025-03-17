@@ -4,6 +4,82 @@ return
 cd("/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh");
 return
 
+
+%% >>>>>>>>>>>>>>>>>>>>>>> BATCH RUN V4 Dynamic Model With 2 CBF param and dynamic N (MPC horizon) <<<<<<<<<<<<<<<<<<<<<<<<<<
+addpath("./functions/");
+import casadi.*
+
+Nvals = [10 50 100];
+[solverStack, args, f] = createSolvers(Nvals);
+
+%%
+
+todaydate = datestr(datetime('today'), 'yymmdd');
+outname = sprintf("./%s_sweep_parm2_dyn_A3.mat",todaydate);
+
+fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname);
+input("");
+existList = false;
+if exist("testListOld","var")
+    fprintf("\n\nThere is an existing test list, will ignore existing tests...\n\nENTER to begin simulations...\n\n");
+    input("");
+    existList = true;
+end
+
+% Create test list for simulations
+%parm5_A2 (13th Feb) vmax = 1 N = 15
+k1 = [0.01 0.1:0.1:0.9 0.99];
+k2 = [ 0.1 0.5 1 1.5 2 3 5 10 50];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ]; 
+cbfd = [0.01];
+obs = [1.0 3.0 5.0 7.0 10.0 ]; 
+
+testList = combinations(k1,k2,cbfd,obs);
+clearvars k1 k2 cbfd obs
+
+testList = sortrows(testList,"obs");
+alldata = [];
+match_count = 0;
+mpcParms = zeros(14,1);
+mpcParms(1:4) = [10 ; 1 ; 1 ; 1];   % Qx[xy yaw v w]
+mpcParms(5:6) = [10 ; 1];           % R[a alpha]
+
+for i = 1:size(testList,1)
+    matchTest = false;
+    
+    % Check if test has been run already, and skip if it has
+    % if existList
+    %     for row = 1:size(testListOld,1)
+    %         matchTest = testList.k1(i) == testListOld.k1(row) && ...
+    %                     testList.k2(i) == testListOld.k2(row) && ...
+    %                     testList.rcbf(i) == testListOld.rcbf(row) && ...
+    %                     testList.obs(i) == testListOld.obs(row);
+    % 
+    %         if matchTest
+    %             break
+    %         end
+    %     end
+    % end
+    % 
+    % if matchTest
+    %     match_count = match_count + 1;
+    %     disp(fprintf("Test already run, match_count = %d",match_count));
+    %     continue
+    % end
+
+    cbfParms = [ testList.k1(i); testList.k2(i) ; testList.cbfd(i)];
+    obs_rad = testList.obs(i);
+    mpcParms(7:9) = cbfParms;
+    simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, N, DT, false, mpcParms);
+    alldata = [alldata ; simdata];
+    if mod(i,100)==0
+        save(outname,"alldata", "testList");
+        fprintf("Run %05d of %05d complete\n",i,size(testList,1))
+    end
+
+end
+fprintf("Run %05d of %05d complete\nDONE\n\n",i,size(testList,1))
+save(outname,"alldata", "testList");
+
 %% >>>>>>>>>>>>>>>>>>>>>>> BATCH RUN V3 Dynamic Model <<<<<<<<<<<<<<<<<<<<<<<<<<
 addpath("./functions/");
 firstrun = ~exist("solver","var") || ~exist("args","var") || ~exist("f","var");
@@ -426,3 +502,31 @@ function plotCurrentState(vehicle, obstacle,time)
     close all;
 end
 
+
+
+%%
+
+function [solverStack, args, f] = createSolvers(Nvals)
+
+    if size(Nvals,1) ~= 1
+        disp("Error Nvals must be row vector");
+        return
+    end
+
+    solverStack = {};
+    DT = 0.1;
+    velMax = 1;
+    accMax = 5;
+    cbfParms = [1, 1, 1]; % [gamma-obs1, gamma-obs2, margin]
+    mpcParms = ones(14,1);
+    mpcParms(7:9) = cbfParms;
+    obs_rad = 1;
+    veh_rad = 0.55;
+
+    for i = Nvals
+        [solver, args, f] = createMPCDynamicSolver(DT,i,velMax,accMax,1);
+
+        solverStack = [solverStack ; {solver}];
+    
+    end
+end

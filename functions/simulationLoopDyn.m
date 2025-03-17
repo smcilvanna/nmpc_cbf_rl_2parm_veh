@@ -1,8 +1,11 @@
-function simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, N, DT, qpEnable, mpcParms)
+function simdata = simulationLoopDyn(solver,args,f, settings)
     
-    if ~exist("qpEnable","var")
-        qpEnable = false;
-    end
+    cbfParms    = settings.cbfParms; 
+    obs_rad     = settings.obs_rad;
+    N           = settings.N;
+    DT          = settings.DT;
+    mpcParms    = settings.mpcParms;
+    veh_rad     = settings.veh_rad;         % vehicle radius
 
     if numel(cbfParms) ~= 3
         fprintf("Error, number of cbf parameters incorrect, expected 3 got %d\n", numel(cbfParms));
@@ -14,8 +17,6 @@ function simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, N, DT, qp
         fprintf("Error, obstacle radius arg, expected 1 got %d\n", numel(obs_rad));
     end
 
-
-    veh_rad = 0.55;         % vehicle radius
     % Static Obstacle params`
     veh_start = [0, 0, deg2rad(45)]';
     [obstacle, goal] = setupObstacleScenario(obs_rad,veh_rad,veh_start,false);    % static obstacle definintion
@@ -38,10 +39,10 @@ function simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, N, DT, qp
     control_horizon = zeros(N,2);                   % Controls for N horizon steps
     X0 = repmat(current_state,1,N+1)';              % initialization of the states decision variables
 
-    obsParms = zeros(16,1);
-    nObs = size(obstacle,2);
-    obsParms(1) = nObs;
-    obsParms(2:1+nObs*3) = reshape(obstacle,(nObs*3),1);
+    % obsParms = zeros(16,1);
+    % nObs = size(obstacle,2);
+    % obsParms(1) = nObs;
+    % obsParms(2:1+nObs*3) = reshape(obstacle,(nObs*3),1);
 
     % args = dynamicHorizon(N,n,args);    % update args for dynamic horizon
 
@@ -52,7 +53,7 @@ function simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, N, DT, qp
                       % states(3)  target(3)    nObs     obstacles  RL-parms     
     %   P = SX.sym('P', n_states + n_pos_ref    +1     + 15         + 18      );  % 40x1 Parameter vector, updated every call
         
-        args.p   = [ target_state ; current_state; obsParms ; mpcParms ];
+        args.p   = [ target_state ; current_state; cbfParms(1:2) ; obstacle ];
 
         args.x0  = [reshape(X0',5*(N+1),1);reshape(control_horizon',2*N,1)];     % initial value of the optimization variables
         sol = solver('x0', args.x0, 'lbx', args.lbx, 'ubx', args.ubx, 'lbg', args.lbg, 'ubg', args.ubg,'p',args.p);
@@ -62,8 +63,8 @@ function simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, N, DT, qp
         u_mpc_history= [u_mpc_history ; u(1,:)];
         sim_time_history(mpciter+1) = current_time;
         
-        % Simulate Time Step                                                    tstep, t_now,           x0,            u, f, obstacle, cbfParms, r_veh
-        [current_time, current_state, control_horizon, u_qp, sep_safe] = simulateTimeStep(DT,    current_time,    current_state, u, f, obstacle, cbfParms, veh_rad, qpEnable );               % Apply the control and simulate the timestep
+        % Simulate Time Step                                                              tstep, t_now,           x0,            u, f, obstacle
+        [current_time, current_state, control_horizon, u_qp, sep_safe] = simulateTimeStep(DT,    current_time,    current_state, u, f, obstacle);               % Apply the control and simulate the timestep
         
         state_history(:,mpciter+2) = current_state;
         u_cbf_history = [u_cbf_history ; u_qp'];
@@ -133,20 +134,20 @@ function nextTarget = getNextTarget(current_state, target_state)
 end
 
 %%
-function [t_next, x0, u0, u_qp, sep_safe] = simulateTimeStep(tstep, t_now, x0, u, f, obstacle, qpParms, r_veh, qpEnable)
+function [t_next, x0, u0, u_qp, sep_safe] = simulateTimeStep(tstep, t_now, x0, u, f, obstacle)
     st = x0;                                
     u_nom = u(1,:)';
 
-    if qpEnable
-        [u_safe, u_qp, sep_safe] = controlBarrierFunction(t_now, obstacle, u_nom, st, qpParms, r_veh, tstep)   ;
-        u_apply = u_safe;   % if qp-cbf is enabled, use output from qp
-    else
-        u_apply = u_nom;    % otherwise use output from MPC only
-        u_qp = 0;
-        obspos = obstacle(1:2);
-        vehpos = st(1:2);
-        sep_safe = norm(obspos - vehpos) - obstacle(3) - r_veh;
-    end
+    % if false
+    %     [u_safe, u_qp, sep_safe] = controlBarrierFunction(t_now, obstacle, u_nom, st, qpParms, r_veh, tstep)   ;
+    %     u_apply = u_safe;   % if qp-cbf is enabled, use output from qp
+    % else
+    u_apply = u_nom;    % otherwise use output from MPC only
+    u_qp = 0;
+    obspos = obstacle(1:2);
+    vehpos = st(1:2);
+    sep_safe = norm(obspos - vehpos) - obstacle(3) - 0.55;  % 0.55 is vehicle radius, change this to variable
+    % end
 
     st = st + (tstep*f(st,u_apply));
     x0 = full(st);

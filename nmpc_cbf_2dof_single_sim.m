@@ -1,38 +1,46 @@
 
-addpath("/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/functions/")
+addpath("/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/functions/");
+import casadi.*
 
 %% Run for single parameter [Dynamic Solver]
-
+clc
 % firstrun = ~exist("solver","var") || ~exist("args","var") || ~exist("f","var");
 firstrun = true;
 if firstrun
     tStart = tic;
     addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION ####          
     import casadi.*
-    DT = 0.1; N = 10;
-    velMax = 2;
-    accMax = 5;
-    cbfParms = [0.2, 1.5, 0.01];
-    mpcParms = zeros(14,1);
-    mpcParms(1:4) = [10 ; 1 ; 1 ; 1];   % Qx[xy yaw v w]
-    mpcParms(5:6) = [10 ; 1];           % R[a alpha]
-    mpcParms(7:9) = cbfParms;
-    obs_rad = 1;
-    veh_rad = 0.55;
-    [obstacle, target] = setupObstacleScenario(obs_rad,veh_rad,[0,0,deg2rad(45)],false);
+    settings.DT = 0.1; 
+    settings.N = 10;
+    settings.velMax = 2;
+    settings.accMax = 5;
+    settings.cbfParms = [0.2, 1.5, 0.01];
+    settings.mpcParms = ones(14,1);
+    settings.mpcParms(7:9) = settings.cbfParms;
+    settings.obs_rad = 1;
+    settings.veh_rad = 0.55;
+    [obstacle, target] = setupObstacleScenario(settings.obs_rad ,settings.veh_rad,[0,0,deg2rad(45)],false);
     % obstacle = [1000 1000 1];
-    [solver, args, f] = createMPCDynamicSolver(DT,N,velMax,accMax,1);
+    [solver, args, f] = createMPCDynamicSolver(settings);
     tSolver = toc(tStart);
     % toc
 end
 
-% cbfParms = [1,2,1];
-simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, N, DT, false, mpcParms);
+% ii = 1;
+% solver = solverStack(ii);
+% settings.cbfParms    = [0.2, 1.5, 0.01]; 
+% settings.obs_rad    = 1;
+% settings.N          = N%Nvals(ii);
+% settings.DT         = 0.1;
+% settings.mpcParms   = zeros(14,1);
+% settings.veh_rad    =0.55;
+
+simdata = simulationLoopDyn(solver,args,f, settings);
 
 
 % Print some time data about sim
 tsteps = size(simdata.states(1:3,:),2) -1;
-tend = tsteps*DT;
+tend = tsteps*settings.DT;
 ltime = simdata.looptime;
 steptime = ltime/tsteps * 1000;
 fprintf("\n\n###########################################################\n")
@@ -43,11 +51,9 @@ fprintf(" Average loop time        : %f ms\n",steptime);
 fprintf("###########################################################\n\n")
 
 % finish
-clearvars -except simdata*
+clearvars -except simdata* 
 disp("Simulation Done")
 return
-
-
 
 
 

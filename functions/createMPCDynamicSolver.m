@@ -1,13 +1,19 @@
-function [solver, args, f] = createMPCDynamicSolver(DT,N,velMax,accMax,nObs)
+function [solver, args, f] = createMPCDynamicSolver(settings)
 %%% createMPCKinematicSolver - create the mpc optimisation objects 
     import casadi.*
-    cbfEnable = false;  % default to no CBF, will be set true if parameters are passed
-    if nargin ~= 5       % set default max linear velocity if not passed as arguement
-        fprintf("\n\n[ERROR]: Error with input args to create MPC solver function.\n\n");
-        return
-    end
+    % cbfEnable = false;  % default to no CBF, will be set true if parameters are passed
+    % if nargin ~= 5       % set default max linear velocity if not passed as arguement
+    %     fprintf("\n\n[ERROR]: Error with input args to create MPC solver function.\n\n");
+    %     return
+    % end
+
+    DT      = settings.DT;
+    N       = settings.N;
+    velMax  = settings.velMax;
+    accMax  = settings.accMax;
+    nObs    = 1;
+    vrad = settings.veh_rad;
     
-    vrad = 0.55;
     x = SX.sym('x');        % x world position  
     y = SX.sym('y');        % y world position
     yaw = SX.sym('yaw');    % heading
@@ -32,18 +38,21 @@ function [solver, args, f] = createMPCDynamicSolver(DT,N,velMax,accMax,nObs)
     
     
     
-                   % target(5)  current(5)   nObs       obstacles   
-    P = SX.sym('P', n_states    + n_states    +1        + 15         + 14      );  % 40x1 Parameter vector, updated every call
-                   % P(1:5)     P(6:10)       P(11)     P(12:26)     (27:40) 
-                                                                    %1 P(27) xy tracking weight
-                                                                    %2 P(28) yaw tracking weight
-                                                                    %3 P(29) v tracking weight
-                                                                    %4 P(30) w tracking weight
-                                                                    %5 P(31) a ctrl weight
-                                                                    %6 P(32) alpha ctrl weight
-                                                                    %7 P(33) cbf_k
-                                                                    %8 P(34) cbf_alpha
-                                                                    %9 P(35) cbf_margin
+    % % %                % target(5)  current(5)   nObs       obstacles   
+    % % % P = SX.sym('P', n_states    + n_states    +1        + 15         + 14      );  % 40x1 Parameter vector, updated every call
+    % % %                % P(1:5)     P(6:10)       P(11)     P(12:26)     (27:40) 
+    % % %                                                                 %1 P(27) xy tracking weight
+    % % %                                                                 %2 P(28) yaw tracking weight
+    % % %                                                                 %3 P(29) v tracking weight
+    % % %                                                                 %4 P(30) w tracking weight
+    % % %                                                                 %5 P(31) a ctrl weight
+    % % %                                                                 %6 P(32) alpha ctrl weight
+    % % %                                                                 %7 P(33) cbf_k
+    % % %                                                                 %8 P(34) cbf_alpha
+    % % %                                                                 %9 P(35) cbf_margin
+
+                    % target(5)   current(5)   cbf(2)   obstacle(3) 
+    P = SX.sym('P', n_states    + n_states   + 2      + 3    );  % Parameter vector, updated every call
 
     X = SX.sym('X', n_states, (N+1));       % 3xN+1 System states initial then N horizon steps
     T = SX.sym('T', n_controls, N);         % 3xN Decision variables (tau) for N horizon steps
@@ -53,18 +62,18 @@ function [solver, args, f] = createMPCDynamicSolver(DT,N,velMax,accMax,nObs)
     g = [];                                 % Empty Constraints Vector
     
 
+    % 
+    % Qx = P(27);
+    % Qy = P(27);
+    % Qyaw = P(28);
+    % Qv = P(29);
+    % Qw = P(30);
+    % Ra = P(31);
+    % Ralpha = P(32);
     
-    Qx = P(27);
-    Qy = P(27);
-    Qyaw = P(28);
-    Qv = P(29);
-    Qw = P(30);
-    Ra = P(31);
-    Ralpha = P(32);
-    
-    Q = diag([Qx Qy Qyaw Qv Qw]);          % Terminal state position error weight matrix
-    R = diag([Ra Ralpha]);                % Horizon steps control effort Weighing matrix
-    Qstage = diag([Qx Qy Qyaw]);         % Horizon steps position error weighing matrix
+    Q = diag([100 100 10 10 10]);          % Terminal state position error weight matrix
+    R = diag([0.1 0.1]);                % Horizon steps control effort Weighing matrix
+    Qstage = diag([10 10 1]);         % Horizon steps position error weighing matrix
     % Qv = diag([10 10 1]);                 % Horizon steps velocity error Weighing matrix
     
     
@@ -133,15 +142,15 @@ function [solver, args, f] = createMPCDynamicSolver(DT,N,velMax,accMax,nObs)
     % end
     
     % Obstacle Avoidance Constraints (ECBF)
-    if nObs > 0
-        cbf_k = P(33);     % CBF parameter (tunable)
-        cbf_alpha = P(34); % CBF parameter (tunable)
-        cbfd = P(35);
-        for obs_idx = 1:nObs
+    if 1
+        cbf_k = P(11);     % CBF parameter (tunable)
+        cbf_alpha = P(12); % CBF parameter (tunable)
+
+        for obs_idx = 1:1
             % Obstacle parameters
-            obs_x   = P(11 + 1 + (obs_idx-1)*4);       % Obstacle x position
-            obs_y   = P(11 + 2 + (obs_idx-1)*4);       % Obstacle y position
-            obs_rad = P(11 + 3 + (obs_idx-1)*4);     % Obstacle radius
+            obs_x   = P(13);       % Obstacle x position
+            obs_y   = P(14);       % Obstacle y position
+            obs_rad = P(15);     % Obstacle radius
             % obs_influence = P(17 + 4 + (obs_idx-1)*4); % Obstacle influence radius
     
             for k = 1:N+1 % Iterate over prediction horizon
@@ -149,7 +158,7 @@ function [solver, args, f] = createMPCDynamicSolver(DT,N,velMax,accMax,nObs)
                 vehicle_x = X(1, k);
                 vehicle_y = X(2, k);
                 dist = sqrt((vehicle_x - obs_x)^2 + (vehicle_y - obs_y)^2);
-                h = dist - obs_rad - vrad - cbfd; %h is now the safety margin
+                h = dist - obs_rad - vrad - 0.00; %h is now the safety margin
     
                 % Exponential CBF formulation
                 % h_dot >= -cbf_k * (1 - exp(-cbf_alpha * h));
