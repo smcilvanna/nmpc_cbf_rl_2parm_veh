@@ -6,6 +6,18 @@ return
 
 
 %% >>>>>>>>>>>>>>>>>>>>>>> BATCH RUN V4 Dynamic Model With 2 CBF param and dynamic N (MPC horizon) <<<<<<<<<<<<<<<<<<<<<<<<<<
+
+%{
+____    ____  _  _    
+\   \  /   / | || |   
+ \   \/   /  | || |_  
+  \      /   |__   _| 
+   \    /       | |   
+    \__/        |_|   
+%}
+
+
+
 addpath("./functions/");
 addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION #### 
 import casadi.*
@@ -74,6 +86,16 @@ visualiseSimulation(simdata, staticPlot,viewOnScreen);
 
 
 %% >>>>>>>>>>>>>>>>>>>>>>> BATCH RUN V3 Dynamic Model CBF Parameter Sweep <<<<<<<<<<<<<<<<<<<<<<<<<<
+%{
+____    ____  ____   
+\   \  /   / |___ \  
+ \   \/   /    __) | 
+  \      /    |__ <  
+   \    /     ___) |
+    \__/     |____/  
+%}
+
+
 addpath("./functions/");
 firstrun = ~exist("solver","var") || ~exist("args","var") || ~exist("f","var");
 if firstrun
@@ -90,7 +112,9 @@ if firstrun
     [solver, args, f] = createMPCDynamicSolver(settings);
 end
 todaydate = datestr(datetime('today'), 'yymmdd');
-outname = sprintf("./%s_sweep_parm2_dyn_A3.mat",todaydate);
+
+runname = "sweep_parm2_dyn_B1"
+outname = sprintf("./%s_%s.mat",todaydate,runname);
 
 fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname);
 input("");
@@ -102,49 +126,20 @@ if exist("testListOld","var")
 end
 
 % Create test list for simulations
-%parm5_A2 (13th Feb) vmax = 1 N = 15
-k1 = [0.01 0.1:0.1:0.9 0.99];
-k2 = [ 0.1 0.5 1 1.5 2 3 5 10 50];    %[ 0.1, 0.5,  1.0 : 1.0 : 150 ]; 
-cbfd = [0.01];
-obs = [1.0 3.0 5.0 7.0 10.0 ]; 
-
-testList = combinations(k1,k2,cbfd,obs);
-clearvars k1 k2 cbfd obs
+%parm2_B1 (17th March) vmax = 2 accmax = 5 N = 20
+cbf_k       = [0.01 0.1:0.1:0.9 0.99];
+cbf_alpha   = [ 0.1 1:2:10 10]; 
+obs         = [1.0 3.0 5.0 7.0 10.0 ]; 
+testList    = combinations(cbf_k,cbf_alpha,obs);
+clearvars cbf_k cbf_alpha obs
 
 testList = sortrows(testList,"obs");
 alldata = [];
-match_count = 0;
-mpcParms = zeros(14,1);
-mpcParms(1:4) = [10 ; 1 ; 1 ; 1];   % Qx[xy yaw v w]
-mpcParms(5:6) = [10 ; 1];           % R[a alpha]
 
 for i = 1:size(testList,1)
-    matchTest = false;
-    
-    % Check if test has been run already, and skip if it has
-    % if existList
-    %     for row = 1:size(testListOld,1)
-    %         matchTest = testList.k1(i) == testListOld.k1(row) && ...
-    %                     testList.k2(i) == testListOld.k2(row) && ...
-    %                     testList.rcbf(i) == testListOld.rcbf(row) && ...
-    %                     testList.obs(i) == testListOld.obs(row);
-    % 
-    %         if matchTest
-    %             break
-    %         end
-    %     end
-    % end
-    % 
-    % if matchTest
-    %     match_count = match_count + 1;
-    %     disp(fprintf("Test already run, match_count = %d",match_count));
-    %     continue
-    % end
-
-    cbfParms = [ testList.k1(i); testList.k2(i) ; testList.cbfd(i)];
-    obs_rad = testList.obs(i);
-    mpcParms(7:9) = cbfParms;
-    simdata = simulationLoopDyn(solver,args,f, cbfParms, obs_rad, N, DT, false, mpcParms);
+    settings.cbfParms = [ testList.cbf_k(i) , testList.cbf_alpha(i)];
+    settings.obs_rad = testList.obs(i);
+    simdata = simulationLoopDyn(solver,args,f, settings);
     alldata = [alldata ; simdata];
     if mod(i,100)==0
         save(outname,"alldata", "testList");
