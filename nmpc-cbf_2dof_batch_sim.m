@@ -164,14 +164,14 @@ outname = sprintf("./%s_%s.mat",todaydate,runname);
 % end
 
 % Create test list for simulations
-%   parm2_B2 (18th March) vmax = 2 accmax = 5 N = 20
+%   parm2_B2 (18th March) vmax = 2 accmax = 5 N = 20, margin added to CBF within mpc
 cbf_k       = [0.01 0.1:0.1:0.9 0.99];
 cbf_alpha   = [ 0.1 1:2:10 10]; 
 obs         = [1.0 3.0 5.0 7.0 10.0 ]; 
 testList    = combinations(cbf_k,cbf_alpha,obs);
 clearvars cbf_k cbf_alpha obs
 % User input to confirm start of batch run
-input(fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin %d simulations...\n\n",outname,size(testList,1)));
+input(sprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin %d simulations...\n\n",outname,size(testList,1)));
 testList = sortrows(testList,"obs");
 alldata = [];
 
