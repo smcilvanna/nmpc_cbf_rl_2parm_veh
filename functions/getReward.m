@@ -98,7 +98,11 @@ function rewardout = getReward(simdata,weights)
         % wp = 4/6; 
         % ws = 1/6; 
         % wv = 2/6;                   % Reward component weightings
-        reward = rp*wp + rs*ws + rv*wv;                 % total reward
+        
+        
+        
+                 %Path-Efficiency
+        reward = rp*wp              + rs*ws + rv*wv;                 % total reward
         
     end
     rewardout.reward = reward;

@@ -244,6 +244,44 @@ for o = allObs
     end
     fprintf("Finished image for %04.1fm obstacle.\n",o);
 end
+
+%% Plot cbf vs reward, with each obsticle
+close all
+obsSet      = unique(results.orad1);
+cbfk1Set    = unique(results.k1);
+cbfk2Set    = unique(results.k2);
+
+fig = figure();
+hold on
+
+obsTgt = obsSet(3);
+
+for i = 1:numel(cbfk2Set)
+    k2Tgt  = cbfk2Set(i);
+    filterResults  = results( ismember(results.orad1,obsTgt) & ismember(results.k2,k2Tgt),:);
+    x = filterResults.k1;
+    y = filterResults.reward;
+    lbl = num2str(k2Tgt);
+    plot(x,y,LineWidth=2,DisplayName=lbl);
+end
+
+ylim([-1 1])
+title("CBF-Settings Rewards");
+subtitle(sprintf("Obstacle Radius %4.1f m",obsTgt))
+lg = legend()
+title(lg,"CBF{\alpha}")
+xlabel("CBF_{k1}");
+ylabel("Reward [-1 1]")
+
+%%
+%%
+%%
+%%
+%%
+
+
+
+
 %% LOCAL FUNCTIONS
 
 function [results, resultsObs] = processResultsTable(alldata)
