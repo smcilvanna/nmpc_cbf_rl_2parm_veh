@@ -136,7 +136,8 @@ ____    ____  ____
 
 
 addpath("./functions/");
-firstrun = ~exist("solver","var") || ~exist("args","var") || ~exist("f","var");
+% firstrun = ~exist("solver","var") || ~exist("args","var") || ~exist("f","var");
+firstrun = true;
 if firstrun
     clc, close all; clearvars -except testListOld;
     addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION ####          
@@ -152,26 +153,25 @@ if firstrun
 end
 todaydate = datestr(datetime('today'), 'yymmdd');
 
-runname = "sweep_parm2_dyn_B1"
+runname = "sweep_parm2_dyn_B2"
 outname = sprintf("./%s_%s.mat",todaydate,runname);
 
-fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname);
-input("");
-existList = false;
-if exist("testListOld","var")
-    fprintf("\n\nThere is an existing test list, will ignore existing tests...\n\nENTER to begin simulations...\n\n");
-    input("");
-    existList = true;
-end
+% existList = false;
+% if exist("testListOld","var")
+%     fprintf("\n\nThere is an existing test list, will ignore existing tests...\n\nENTER to begin simulations...\n\n");
+%     input("");
+%     existList = true;
+% end
 
 % Create test list for simulations
-%   parm2_B1 (17th March) vmax = 2 accmax = 5 N = 20
+%   parm2_B2 (18th March) vmax = 2 accmax = 5 N = 20
 cbf_k       = [0.01 0.1:0.1:0.9 0.99];
 cbf_alpha   = [ 0.1 1:2:10 10]; 
 obs         = [1.0 3.0 5.0 7.0 10.0 ]; 
 testList    = combinations(cbf_k,cbf_alpha,obs);
 clearvars cbf_k cbf_alpha obs
-
+% User input to confirm start of batch run
+input(fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin %d simulations...\n\n",outname,size(testList,1)));
 testList = sortrows(testList,"obs");
 alldata = [];
 
@@ -287,6 +287,10 @@ save(outname,"alldata", "testList");
 
 %% Parameters Run History
 
+%   parm2_B1 (17th March) vmax = 2 accmax = 5 N = 20
+cbf_k       = [0.01 0.1:0.1:0.9 0.99];
+cbf_alpha   = [ 0.1 1:2:10 10]; 
+obs         = [1.0 3.0 5.0 7.0 10.0 ]; 
 
 %parm9_A1 (11th Feb) vmax = 1 N = 15
 k1 = [0.01 , 0.05 , 0.1 : 0.2 : 0.9, 0.99];

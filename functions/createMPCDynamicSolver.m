@@ -158,7 +158,7 @@ function [solver, args, f] = createMPCDynamicSolver(settings)
                 vehicle_x = X(1, k);
                 vehicle_y = X(2, k);
                 dist = sqrt((vehicle_x - obs_x)^2 + (vehicle_y - obs_y)^2);
-                h = dist - obs_rad - vrad - 0.00; %h is now the safety margin
+                h = dist - obs_rad - vrad - 0.02; %h is now the safety margin
     
                 % Exponential CBF formulation
                 % h_dot >= -cbf_k * (1 - exp(-cbf_alpha * h));

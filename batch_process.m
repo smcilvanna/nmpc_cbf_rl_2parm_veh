@@ -251,29 +251,78 @@ obsSet      = unique(results.orad1);
 cbfk1Set    = unique(results.k1);
 cbfk2Set    = unique(results.k2);
 
-fig = figure();
-hold on
+figs = [];
 
-obsTgt = obsSet(3);
-
-for i = 1:numel(cbfk2Set)
-    k2Tgt  = cbfk2Set(i);
-    filterResults  = results( ismember(results.orad1,obsTgt) & ismember(results.k2,k2Tgt),:);
-    x = filterResults.k1;
-    y = filterResults.reward;
-    lbl = num2str(k2Tgt);
-    plot(x,y,LineWidth=2,DisplayName=lbl);
+for ii = 1:numel(obsSet)
+    fig = figure(Visible="off");
+    hold on;
+    obsTgt = obsSet(ii);
+    
+    for i = 1:numel(cbfk2Set)
+        k2Tgt  = cbfk2Set(i);
+        filterResults  = results( ismember(results.orad1,obsTgt) & ismember(results.k2,k2Tgt),:);
+        x = filterResults.k1;
+        y = filterResults.reward;
+        lbl = num2str(k2Tgt);
+        plot(x,y,LineWidth=2,DisplayName=lbl);
+    end
+    
+    ylim([-1 1])
+    title("CBF-Settings Rewards");
+    subtitle(sprintf("Obstacle Radius %4.1f m",obsTgt))
+    lg = legend();
+    title(lg,"CBF{\alpha}")
+    xlabel("CBF_{k1}");
+    ylabel("Reward [-1 1]");
+    hold off;
+    figs = [figs ; fig];
 end
 
-ylim([-1 1])
-title("CBF-Settings Rewards");
-subtitle(sprintf("Obstacle Radius %4.1f m",obsTgt))
-lg = legend()
-title(lg,"CBF{\alpha}")
-xlabel("CBF_{k1}");
-ylabel("Reward [-1 1]")
+clearvars cbfk1Set cbfk2Set fig i ii k2Tgt lbl lg obsSet obsTgt x y filterResults
 
-%%
+for i = 1:numel(figs)
+    figure(figs(i));
+end
+
+input("<ENTER> to clear figures");
+close all;
+%% Plot data per obstacle, optional filter by cbf k2
+close all
+obsSet      = unique(results.orad1);
+cbfk1Set    = unique(results.k1);
+cbfk2Set    = unique(results.k2);
+
+figs = [];
+
+for ii = 1:numel(obsSet)
+    fig = figure();
+    hold on
+    obsTgt = obsSet(ii);
+    
+    for i = 1:numel(cbfk2Set)
+        k2Tgt  = cbfk2Set(i);
+        filterResults  = results( ismember(results.orad1,obsTgt) & ismember(results.k2,k2Tgt),:);
+        x = filterResults.k1;
+        y = filterResults.reward;
+        lbl = num2str(k2Tgt);
+        plot(x,y,LineWidth=2,DisplayName=lbl);
+    end
+    
+    ylim([-1 1])
+    title("CBF-Settings Rewards");
+    subtitle(sprintf("Obstacle Radius %4.1f m",obsTgt))
+    lg = legend()
+    title(lg,"CBF{\alpha}")
+    xlabel("CBF_{k1}");
+    ylabel("Reward [-1 1]")
+    hold off
+    figs = [figs ; fig];
+end
+
+
+
+
+
 %%
 %%
 %%
