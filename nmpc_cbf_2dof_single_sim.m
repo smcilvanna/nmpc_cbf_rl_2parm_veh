@@ -14,10 +14,10 @@ if firstrun
     settings.N = 20;
     settings.velMax = 2;
     settings.accMax = 5;
-    settings.cbfParms = [0.3, 1.5, 0.01];
-    settings.mpcParms = ones(14,1);
-    settings.mpcParms(7:9) = settings.cbfParms;
-    settings.obs_rad = 2;
+    settings.cbfParms = [1, 1];
+    % settings.mpcParms = ones(14,1);
+    % settings.mpcParms(7:9) = settings.cbfParms;
+    settings.obs_rad = 1;
     settings.veh_rad = 0.55;
     [obstacle, target] = setupObstacleScenario(settings.obs_rad ,settings.veh_rad,[0,0,deg2rad(45)],false);
     % obstacle = [1000 1000 1];

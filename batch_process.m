@@ -294,22 +294,27 @@ cbfk2Set    = unique(results.k2);
 
 obsTgt = obsSet(1);
 k2Tgt  = cbfk2Set(2);
-fprintf("Showing Paths For Obstacle Radius %.2f m and CBF-k2 %d", obsTgt,k2Tgt)
+fprintf("Showing Paths For Obstacle Radius: %.2f m and CBF-k2: %d\n", obsTgt,k2Tgt)
 figs = [];
 
 filterResults  = results( ismember(results.orad1,obsTgt) & ismember(results.k2,k2Tgt),:);
 
 for i = 1:size(filterResults,1)
-
-    fig = 
-
-
+    idx = filterResults.allIdx(i);
+    simdata = alldata(idx); staticPlot = true; viewOnScreen = false;
+    fig = visualiseSimulation(simdata,staticPlot,viewOnScreen);
+    figs = [figs ; fig];
+    fprintf("%d ",i);
 end
+fprintf("\n");
 
+for f = 1:numel(figs)
+    figure(figs(f));
+    pause(1);
+end
+close all
 
-figs = [figs ; fig];
-
-
+clearvars cbfk1Set cbfk2Set fig i ii k2Tgt lbl lg obsSet obsTgt x y idx staticPlot viewOnScreen simdata
 
 
 
