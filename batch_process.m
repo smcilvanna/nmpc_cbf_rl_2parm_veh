@@ -292,32 +292,23 @@ obsSet      = unique(results.orad1);
 cbfk1Set    = unique(results.k1);
 cbfk2Set    = unique(results.k2);
 
+obsTgt = obsSet(1);
+k2Tgt  = cbfk2Set(2);
+fprintf("Showing Paths For Obstacle Radius %.2f m and CBF-k2 %d", obsTgt,k2Tgt)
 figs = [];
 
-for ii = 1:numel(obsSet)
-    fig = figure();
-    hold on
-    obsTgt = obsSet(ii);
-    
-    for i = 1:numel(cbfk2Set)
-        k2Tgt  = cbfk2Set(i);
-        filterResults  = results( ismember(results.orad1,obsTgt) & ismember(results.k2,k2Tgt),:);
-        x = filterResults.k1;
-        y = filterResults.reward;
-        lbl = num2str(k2Tgt);
-        plot(x,y,LineWidth=2,DisplayName=lbl);
-    end
-    
-    ylim([-1 1])
-    title("CBF-Settings Rewards");
-    subtitle(sprintf("Obstacle Radius %4.1f m",obsTgt))
-    lg = legend()
-    title(lg,"CBF{\alpha}")
-    xlabel("CBF_{k1}");
-    ylabel("Reward [-1 1]")
-    hold off
-    figs = [figs ; fig];
+filterResults  = results( ismember(results.orad1,obsTgt) & ismember(results.k2,k2Tgt),:);
+
+for i = 1:size(filterResults,1)
+
+    fig = 
+
+
 end
+
+
+figs = [figs ; fig];
+
 
 
 
@@ -350,8 +341,8 @@ function [results, resultsObs] = processResultsTable(alldata)
         maxVel = rewardout.maxVel;
         stime = rewardout.simtime;
 
-        results = [results ; array2table(   [cbf',      obs1,   obs2,       reward,     dist,       opdst,        fsep,       msep      aveVel,     maxVel,     stime], ...
-                            "VariableNames",["k1","k2", "orad1","orad2",    "reward",   "pathDist", "optimalDist","finishSep","minSep", "aveVel",   "maxVel",   "simTime"])];
+        results = [results ; array2table(   [cbf',      obs1,   obs2,       reward,     dist,       opdst,        fsep,       msep      aveVel,     maxVel,     stime,     i], ...
+                            "VariableNames",["k1","k2", "orad1","orad2",    "reward",   "pathDist", "optimalDist","finishSep","minSep", "aveVel",   "maxVel",   "simTime", "allIdx"])];
         if mod(i,1000)==0
             disp(i)
         end
