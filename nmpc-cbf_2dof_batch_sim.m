@@ -65,7 +65,46 @@ staticPlot = false; viewOnScreen = true;
 visualiseSimulation(simdata, staticPlot,viewOnScreen);
 
 
+%% Batch run with different N-solvers
+todaydate = datestr(datetime('today'), 'yymmdd');
+runname = "sweep_parm2_dyn_B2n"
+outname = sprintf("./%s_%s.mat",todaydate,runname);
+fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname);
+input("");
+existList = false;
+if exist("testListOld","var")
+    fprintf("\n\nThere is an existing test list, will ignore existing tests...\n\nENTER to begin simulations...\n\n");
+    input("");
+    existList = true;
+end
 
+% Create test list for simulations
+%   parm2_B2n (17th March) vmax = 2 accmax = 5 N = solverStack
+cbf_k       = [0.01 0.1:0.1:0.9 0.99];
+cbf_alpha   = [ 0.1 1:2:10 10]; 
+obs         = [1.0 3.0 5.0 7.0 10.0 ];
+Nidx        = 1:numel(Nvals);
+testList    = combinations(cbf_k,cbf_alpha,Nidx,obs);
+clearvars cbf_k cbf_alpha obs Nidx
+
+testList = sortrows(testList,"obs");
+alldata = [];
+
+for i = 1:size(testList,1)
+    solverSel = testList.Nidx(i);
+    settings.cbfParms = [ testList.cbf_k(i) ; testList.cbf_alpha(i)];
+    settings.obs_rad = testList.obs(i);
+    settings.N = Nvals(solverSel);
+    simdata = simulationLoopDyn(solverStack{solverSel},argsStack{solverSel},f, settings);
+    alldata = [alldata ; simdata];
+    if mod(i,100)==0
+        save(outname,"alldata", "testList");
+        fprintf("Run %05d of %05d complete\n",i,size(testList,1))
+    end
+    disp(i);
+end
+fprintf("Run %05d of %05d complete\nDONE\n\n",i,size(testList,1))
+save(outname,"alldata", "testList");
 
 
 
@@ -126,7 +165,7 @@ if exist("testListOld","var")
 end
 
 % Create test list for simulations
-%parm2_B1 (17th March) vmax = 2 accmax = 5 N = 20
+%   parm2_B1 (17th March) vmax = 2 accmax = 5 N = 20
 cbf_k       = [0.01 0.1:0.1:0.9 0.99];
 cbf_alpha   = [ 0.1 1:2:10 10]; 
 obs         = [1.0 3.0 5.0 7.0 10.0 ]; 
@@ -137,7 +176,7 @@ testList = sortrows(testList,"obs");
 alldata = [];
 
 for i = 1:size(testList,1)
-    settings.cbfParms = [ testList.cbf_k(i) , testList.cbf_alpha(i)];
+    settings.cbfParms = [ testList.cbf_k(i) ; testList.cbf_alpha(i)];
     settings.obs_rad = testList.obs(i);
     simdata = simulationLoopDyn(solver,args,f, settings);
     alldata = [alldata ; simdata];
@@ -145,7 +184,7 @@ for i = 1:size(testList,1)
         save(outname,"alldata", "testList");
         fprintf("Run %05d of %05d complete\n",i,size(testList,1))
     end
-
+    disp(i);
 end
 fprintf("Run %05d of %05d complete\nDONE\n\n",i,size(testList,1))
 save(outname,"alldata", "testList");

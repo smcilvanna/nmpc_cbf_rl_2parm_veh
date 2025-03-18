@@ -7,10 +7,10 @@ function simdata = simulationLoopDyn(solver,args,f, settings)
     % mpcParms    = settings.mpcParms;
     veh_rad     = settings.veh_rad;         % vehicle radius
 
-    if numel(cbfParms) ~= 3
-        fprintf("Error, number of cbf parameters incorrect, expected 3 got %d\n", numel(cbfParms));
+    if numel(cbfParms) ~= 2
+        fprintf("Error, number of cbf parameters incorrect, expected 2 got %d\n", numel(cbfParms));
     else
-        cbfParms = reshape(cbfParms,3,1);
+        cbfParms = reshape(cbfParms,2,1);
     end
 
     if numel(obs_rad) ~= 1

@@ -183,19 +183,20 @@ function fig = visualiseSimulation(simdata,staticPlot,view,alim)
         tsteps = size(vehicle_positions,2) -1;
         tend = tsteps*timeStep;
         title(ax1,"Mobile Robot Trajectory");
-        cbfk1 = simdata.cbf(1);
-        mpcQxy = simdata.mpcParms(5);
-        mpcQw = simdata.mpcParms(6);
-        mpcRv = simdata.mpcParms(3);
-        mpcRw = simdata.mpcParms(4);
+        cbf_k1 = simdata.cbf(1);
+        cbf_alpha = simdata.cbf(2);
+        % mpcQxy = simdata.mpcParms(5);
+        % mpcQw = simdata.mpcParms(6);
+        % mpcRv = simdata.mpcParms(3);
+        % mpcRw = simdata.mpcParms(4);
         mpcN = simdata.N;
         ltime = simdata.looptime;
         steptime = ltime/tsteps * 1000;
         yawend = rad2deg(vehicle_positions(3,end));
         % cbfk2 = simdata.cbf(2);
         % cbfd = simdata.cbf(3);
-        subtitle(ax1,sprintf("cbf_{\\gamma} [%.3f]   |   Q [%06.2f , %06.2f ,%05.2f]    R [%06.2f , %05.2f]\nN [%d] | Yaw_{end} [%05.1f]   |  EndTime [%05.2fs]  SimTime [%05.2fs]  StepTime [%05.2fms]", ...
-                                           cbfk1,           mpcQxy,  mpcQxy, mpcQw,        mpcRv,   mpcRw,      mpcN,            yawend ,              tend,             ltime,              steptime));
+        subtitle(ax1,sprintf("cbf_{k1}= [%.3f]  cbf_{\\alpha}= [%.3f]   |   N= [%d] \nYaw_{end} [%05.1f]  |  EndTime [%05.2f s]  SimTime [%05.2f s]  StepTime [%05.2f ms]", ...
+                                         cbf_k1,                cbf_alpha,      mpcN,            yawend,              tend,               ltime,               steptime));
         
         % ytxt = sprintf("Final Yaw : %0.2f\nRuntime: %.02f",rad2deg(vehicle_positions(3,end)),tend );
         % text(ax1,10,1,ytxt);
@@ -219,8 +220,8 @@ function fig = visualiseSimulation(simdata,staticPlot,view,alim)
     
         ax2 = nexttile(4,[1 3]);
         plot(ax2, t,speed,LineWidth=2, Color=[0.1 0.1 0.9],DisplayName="Linear Velocity");
-        hold(ax2,"on");
-        plot(ax2, t,linvCtrl, LineWidth=1, Color=[0.1 0.1 0.1],DisplayName="u_{v}")
+        % hold(ax2,"on");
+        % plot(ax2, t,linvCtrl, LineWidth=1, Color=[0.1 0.1 0.1],DisplayName="u_{v}")
         title(ax2,"Linear Velocity"); ylabel("v (m/s)"); grid on
     
         ax3 = nexttile(10,[1 3]);

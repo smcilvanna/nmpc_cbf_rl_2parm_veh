@@ -199,7 +199,7 @@ end
 %% Plot single from alldata
 
 % i = 300;
-i = 8888;
+i = 200;
 % i = 30000;
 % i = 33333;
 simdata = alldata(i);
@@ -214,11 +214,10 @@ for i = 1:1:size(alldata,1)
     simdata = alldata(i);
     % close(fig); 
     fig = visualiseSimulation(simdata,staticPlot,viewOnScreen);
-    exportgraphics(fig,"/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/out_2p_dynA3.gif", Append=true);
+    exportgraphics(fig,"/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/outB1.gif", Append=true);
     close(fig);
-    if mod(i,10)==0
-        disp(i);
-    end
+    disp(i);
+
 end
 
 %% Plot multiple from alldata to gif, separate by obstacle size
@@ -251,7 +250,6 @@ function [results, resultsObs] = processResultsTable(alldata)
     results = [];
     for i = 1:size(alldata,1)
         cbf = alldata(i).cbf;
-        mpcParms = alldata(i).mpcParms(1:6);
         obs1 = alldata(i).obstacle(3,1);
         % obs2 = alldata(i).obstacle(3,2);
         obs2 = obs1;
@@ -265,8 +263,8 @@ function [results, resultsObs] = processResultsTable(alldata)
         maxVel = rewardout.maxVel;
         stime = rewardout.simtime;
 
-        results = [results ; array2table(   [cbf',                  mpcParms',                                   obs1,   obs2,       reward,     dist,       opdst,        fsep,       msep      aveVel,     maxVel,     stime], ...
-                            "VariableNames",["k1","k2","rcbf",      "Qx-xy","Qx-w","R-v","R-w","Q-xy","Q-w",    "orad1","orad2",    "reward",   "pathDist", "optimalDist","finishSep","minSep", "aveVel",   "maxVel",   "simTime"])];
+        results = [results ; array2table(   [cbf',      obs1,   obs2,       reward,     dist,       opdst,        fsep,       msep      aveVel,     maxVel,     stime], ...
+                            "VariableNames",["k1","k2", "orad1","orad2",    "reward",   "pathDist", "optimalDist","finishSep","minSep", "aveVel",   "maxVel",   "simTime"])];
         if mod(i,1000)==0
             disp(i)
         end
