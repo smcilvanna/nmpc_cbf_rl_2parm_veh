@@ -141,10 +141,45 @@ function [solver, args, f] = createMPCDynamicSolver(settings)
     %     end
     % end
     
-    % Obstacle Avoidance Constraints (ECBF)
+    % % % % % Obstacle Avoidance Constraints (exponential-ish-type-CBF-V1)
+    % % % % if 1
+    % % % %     cbf_k = P(11);     % CBF parameter (tunable)
+    % % % %     cbf_alpha = P(12); % CBF parameter (tunable)
+    % % % % 
+    % % % %     for obs_idx = 1:1
+    % % % %         % Obstacle parameters
+    % % % %         obs_x   = P(13);       % Obstacle x position
+    % % % %         obs_y   = P(14);       % Obstacle y position
+    % % % %         obs_rad = P(15);     % Obstacle radius
+    % % % %         % obs_influence = P(17 + 4 + (obs_idx-1)*4); % Obstacle influence radius
+    % % % % 
+    % % % %         for k = 1:N+1 % Iterate over prediction horizon
+    % % % %             % Calculate distance to obstacle
+    % % % %             vehicle_x = X(1, k);
+    % % % %             vehicle_y = X(2, k);
+    % % % %             dist = sqrt((vehicle_x - obs_x)^2 + (vehicle_y - obs_y)^2);
+    % % % %             h = dist - obs_rad - vrad - 0.02; %h is now the safety margin
+    % % % % 
+    % % % %             % Exponential CBF formulation
+    % % % %             % h_dot >= -cbf_k * (1 - exp(-cbf_alpha * h));
+    % % % %             g = [g; h + (1/cbf_k)*log(1+h*cbf_alpha) ]; %this form is equivalent to the exponential function
+    % % % % 
+    % % % %             %This above equation can be derived using a taylor series approximation for the exponential function
+    % % % %             %   1 - exp(-cbf_alpha * h) ≈ cbf_alpha * h
+    % % % %             %Thus:
+    % % % %             % h_dot >= -cbf_k * cbf_alpha * h;
+    % % % %             %If cbf_k * cbf_alpha == constant, then we go back to the linear cbf constraints
+    % % % %             %   h_dot >= -constant * h
+    % % % %             %and h = sqrt((vehicle_x - obs_x)^2 + (vehicle_y - obs_y)^2) - obs_rad - vrad - obs_influence;
+    % % % %         end
+    % % % %     end
+    % % % % end
+
+    % >>>> Obstacle Avoidance Constraints (eCBF-V2)
     if 1
-        cbf_k = P(11);     % CBF parameter (tunable)
-        cbf_alpha = P(12); % CBF parameter (tunable)
+        cbf_k1 = P(11);     % CBF parameter (tunable)
+        cbf_k2 = P(12);     % CBF parameter (tunable)
+        cbf_margin = 0.02;
 
         for obs_idx = 1:1
             % Obstacle parameters
@@ -152,29 +187,29 @@ function [solver, args, f] = createMPCDynamicSolver(settings)
             obs_y   = P(14);       % Obstacle y position
             obs_rad = P(15);     % Obstacle radius
             % obs_influence = P(17 + 4 + (obs_idx-1)*4); % Obstacle influence radius
-    
+
             for k = 1:N+1 % Iterate over prediction horizon
                 % Calculate distance to obstacle
                 vehicle_x = X(1, k);
                 vehicle_y = X(2, k);
-                dist = sqrt((vehicle_x - obs_x)^2 + (vehicle_y - obs_y)^2);
-                h = dist - obs_rad - vrad - 0.02; %h is now the safety margin
-    
-                % Exponential CBF formulation
-                % h_dot >= -cbf_k * (1 - exp(-cbf_alpha * h));
+                vehicle_yaw = X(3,k);
+                vehvel_x  = X(4,k)*cos(vehicle_yaw);
+                velveh_y  = X(4,k)*sin(vehicle_yaw);
+                
+                sx = obx_x - vehicle_x;
+                sy = obs_x - vehicle_y;
+                
+                dist = sqrt((sx)^2 + (sy)^2);
+                h = dist - obs_rad - vrad - cbf_margin; %h is now the safety margin
+
+                
+                % eCBF formulation
                 g = [g; h + (1/cbf_k)*log(1+h*cbf_alpha) ]; %this form is equivalent to the exponential function
-    
-                %This above equation can be derived using a taylor series approximation for the exponential function
-                %   1 - exp(-cbf_alpha * h) ≈ cbf_alpha * h
-                %Thus:
-                % h_dot >= -cbf_k * cbf_alpha * h;
-                %If cbf_k * cbf_alpha == constant, then we go back to the linear cbf constraints
-                %   h_dot >= -constant * h
-                %and h = sqrt((vehicle_x - obs_x)^2 + (vehicle_y - obs_y)^2) - obs_rad - vrad - obs_influence;
+
             end
         end
     end
-    
+
     OPT_variables = [ reshape(X, n_states*(N+1), 1) ; reshape(T, n_controls*N, 1) ];
     
     nlp_prob = struct('f', J, 'x', OPT_variables, 'g', g, 'p', P);
