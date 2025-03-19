@@ -1,5 +1,6 @@
 
 addpath("/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/functions/");
+addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION ####
 import casadi.*
 
 %% Run for single parameter [Dynamic Solver]
@@ -7,14 +8,13 @@ clc
 % firstrun = ~exist("solver","var") || ~exist("args","var") || ~exist("f","var");
 firstrun = true;
 if firstrun
-    tStart = tic;
-    addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION ####          
+    tStart = tic;          
     import casadi.*
     settings.DT = 0.1; 
     settings.N = 20;
     settings.velMax = 2;
     settings.accMax = 5;
-    settings.cbfParms = [1, 1];
+    settings.cbfParms = [0.1, 0.1];
     % settings.mpcParms = ones(14,1);
     % settings.mpcParms(7:9) = settings.cbfParms;
     settings.obs_rad = 1;

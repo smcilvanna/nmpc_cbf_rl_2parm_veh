@@ -141,45 +141,15 @@ function [solver, args, f] = createMPCDynamicSolver(settings)
     %     end
     % end
     
-    % % % % % Obstacle Avoidance Constraints (exponential-ish-type-CBF-V1)
-    % % % % if 1
-    % % % %     cbf_k = P(11);     % CBF parameter (tunable)
-    % % % %     cbf_alpha = P(12); % CBF parameter (tunable)
-    % % % % 
-    % % % %     for obs_idx = 1:1
-    % % % %         % Obstacle parameters
-    % % % %         obs_x   = P(13);       % Obstacle x position
-    % % % %         obs_y   = P(14);       % Obstacle y position
-    % % % %         obs_rad = P(15);     % Obstacle radius
-    % % % %         % obs_influence = P(17 + 4 + (obs_idx-1)*4); % Obstacle influence radius
-    % % % % 
-    % % % %         for k = 1:N+1 % Iterate over prediction horizon
-    % % % %             % Calculate distance to obstacle
-    % % % %             vehicle_x = X(1, k);
-    % % % %             vehicle_y = X(2, k);
-    % % % %             dist = sqrt((vehicle_x - obs_x)^2 + (vehicle_y - obs_y)^2);
-    % % % %             h = dist - obs_rad - vrad - 0.02; %h is now the safety margin
-    % % % % 
-    % % % %             % Exponential CBF formulation
-    % % % %             % h_dot >= -cbf_k * (1 - exp(-cbf_alpha * h));
-    % % % %             g = [g; h + (1/cbf_k)*log(1+h*cbf_alpha) ]; %this form is equivalent to the exponential function
-    % % % % 
-    % % % %             %This above equation can be derived using a taylor series approximation for the exponential function
-    % % % %             %   1 - exp(-cbf_alpha * h) ≈ cbf_alpha * h
-    % % % %             %Thus:
-    % % % %             % h_dot >= -cbf_k * cbf_alpha * h;
-    % % % %             %If cbf_k * cbf_alpha == constant, then we go back to the linear cbf constraints
-    % % % %             %   h_dot >= -constant * h
-    % % % %             %and h = sqrt((vehicle_x - obs_x)^2 + (vehicle_y - obs_y)^2) - obs_rad - vrad - obs_influence;
-    % % % %         end
-    % % % %     end
-    % % % % end
+%>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    
 
-    % >>>> Obstacle Avoidance Constraints (eCBF-V2)
-    if 1
-        cbf_k1 = P(11);     % CBF parameter (tunable)
-        cbf_k2 = P(12);     % CBF parameter (tunable)
-        cbf_margin = 0.02;
+    cbf_v1 = false;
+
+    % Obstacle Avoidance Constraints (exponential-ish-type-CBF-V1)
+    if cbf_v1
+        cbf_k = P(11);     % CBF parameter (tunable)
+        cbf_alpha = P(12); % CBF parameter (tunable)
 
         for obs_idx = 1:1
             % Obstacle parameters
@@ -192,20 +162,60 @@ function [solver, args, f] = createMPCDynamicSolver(settings)
                 % Calculate distance to obstacle
                 vehicle_x = X(1, k);
                 vehicle_y = X(2, k);
-                vehicle_yaw = X(3,k);
-                vehvel_x  = X(4,k)*cos(vehicle_yaw);
-                velveh_y  = X(4,k)*sin(vehicle_yaw);
-                
-                sx = obx_x - vehicle_x;
-                sy = obs_x - vehicle_y;
-                
-                dist = sqrt((sx)^2 + (sy)^2);
-                h = dist - obs_rad - vrad - cbf_margin; %h is now the safety margin
+                dist = sqrt((vehicle_x - obs_x)^2 + (vehicle_y - obs_y)^2);
+                h = dist - obs_rad - vrad - 0.02; %h is now the safety margin
 
-                
-                % eCBF formulation
+                % Exponential CBF formulation
+                % h_dot >= -cbf_k * (1 - exp(-cbf_alpha * h));
                 g = [g; h + (1/cbf_k)*log(1+h*cbf_alpha) ]; %this form is equivalent to the exponential function
 
+                %This above equation can be derived using a taylor series approximation for the exponential function
+                %   1 - exp(-cbf_alpha * h) ≈ cbf_alpha * h
+                %Thus:
+                % h_dot >= -cbf_k * cbf_alpha * h;
+                %If cbf_k * cbf_alpha == constant, then we go back to the linear cbf constraints
+                %   h_dot >= -constant * h
+                %and h = sqrt((vehicle_x - obs_x)^2 + (vehicle_y - obs_y)^2) - obs_rad - vrad - obs_influence;
+            end
+        end
+    end
+
+%>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    % >>>> Obstacle Avoidance Constraints (eCBF-V2)
+    if ~cbf_v1
+        cbf_k1 = P(11);     % CBF parameter (tunable)
+        cbf_k2 = P(12);     % CBF parameter (tunable)
+        cbf_margin = 0.02;
+
+        for obs_idx = 1:1
+            % Obstacle parameters
+            obs_x   = P(13);       % Obstacle x position
+            obs_y   = P(14);       % Obstacle y position
+            obs_rad = P(15);     % Obstacle radius
+            % obs_influence = P(17 + 4 + (obs_idx-1)*4); % Obstacle influence radius
+
+            for k = 1:N+1 % Iterate over prediction horizon
+                if k ~= N+1
+                    ka = k;
+                else
+                    ka = k-1;
+                end
+                % Calculate distance to obstacle
+                vehicle_x = X(1, k);
+                vehicle_y = X(2, k);
+                vehicle_yaw = X(3,k);
+                vehvel_x  = X(4,k)*cos(vehicle_yaw);
+                vehvel_y  = X(4,k)*sin(vehicle_yaw);
+                vehacc_x  = T(1,ka)*cos(vehicle_yaw);
+                vehacc_y  = T(1,ka)*sin(vehicle_yaw);
+                sx = vehicle_x - obs_x;
+                sy = vehicle_y - obs_x;
+                dist = sqrt((sx)^2 + (sy)^2);
+                h = dist - obs_rad - vrad - cbf_margin; 
+                lfh = 2*sx*vehvel_x + 2*sy*vehvel_y;
+                l2fh = 2*sx*vehacc_x + 2*vehvel_x^2 + 2*sy*vehacc_y + 2*vehvel_y^2;
+                ecbf = l2fh + k1*lfh + k2*h; % >= 0
+                g = [g ; ecbf ]; 
             end
         end
     end
