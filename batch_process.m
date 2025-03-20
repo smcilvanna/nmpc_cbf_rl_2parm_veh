@@ -286,13 +286,14 @@ end
 
 input("<ENTER> to clear figures");
 close all;
-%% Plot data per obstacle, optional filter by cbf k2
+%% Plot data per obstacle, optional filter by cbf k2 & N
 close all
 obsSet      = unique(results.orad1);
 cbfk1Set    = unique(results.k1);
 cbfk2Set    = unique(results.k2);
+nSet        = unique(results.N);
 
-obsTgt = obsSet(1);
+obsTgt = obsSet(4);
 k2Tgt  = cbfk2Set(2);
 fprintf("Showing Paths For Obstacle Radius: %.2f m and CBF-k2: %d\n", obsTgt,k2Tgt)
 figs = [];
@@ -311,6 +312,7 @@ fprintf("\n");
 for f = 1:numel(figs)
     figure(figs(f));
     pause(1);
+    % close all;
 end
 close all
 
@@ -334,6 +336,7 @@ function [results, resultsObs] = processResultsTable(alldata)
     for i = 1:size(alldata,1)
         cbf = alldata(i).cbf;
         obs1 = alldata(i).obstacle(3,1);
+        N = alldata(i).N;
         % obs2 = alldata(i).obstacle(3,2);
         obs2 = obs1;
         rewardout = getReward(alldata(i));
@@ -346,8 +349,8 @@ function [results, resultsObs] = processResultsTable(alldata)
         maxVel = rewardout.maxVel;
         stime = rewardout.simtime;
 
-        results = [results ; array2table(   [cbf',      obs1,   obs2,       reward,     dist,       opdst,        fsep,       msep      aveVel,     maxVel,     stime,     i], ...
-                            "VariableNames",["k1","k2", "orad1","orad2",    "reward",   "pathDist", "optimalDist","finishSep","minSep", "aveVel",   "maxVel",   "simTime", "allIdx"])];
+        results = [results ; array2table(   [cbf',      obs1,   obs2,       reward,     dist,       opdst,        fsep,       msep      aveVel,     maxVel,     stime,     i, N], ...
+                            "VariableNames",["k1","k2", "orad1","orad2",    "reward",   "pathDist", "optimalDist","finishSep","minSep", "aveVel",   "maxVel",   "simTime", "allIdx", "N"])];
         if mod(i,1000)==0
             disp(i)
         end

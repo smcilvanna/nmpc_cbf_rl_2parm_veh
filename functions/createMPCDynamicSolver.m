@@ -214,7 +214,7 @@ function [solver, args, f] = createMPCDynamicSolver(settings)
                 h = dist - obs_rad - vrad - cbf_margin; 
                 lfh = 2*sx*vehvel_x + 2*sy*vehvel_y;
                 l2fh = 2*sx*vehacc_x + 2*vehvel_x^2 + 2*sy*vehacc_y + 2*vehvel_y^2;
-                ecbf = l2fh + k1*lfh + k2*h; % >= 0
+                ecbf = l2fh + cbf_k1*lfh + cbf_k2*h; % >= 0
                 g = [g ; ecbf ]; 
             end
         end
@@ -249,7 +249,7 @@ function [solver, args, f] = createMPCDynamicSolver(settings)
 
     % CBF constraints (h_dot >= -gamma(h))
     if nObs > 0
-        args.lbg(end+1:end+nObs*(N+1)) = 0; % Lower bound for CBF constraints (h_dot >= -gamma(h))
+        args.lbg(end+1:end+nObs*(N+1)) = 0; % Lower bound for CBF constraints, must be >= zero for safe condition
         args.ubg(end+1:end+nObs*(N+1)) = inf; % No upper bound
     end
 

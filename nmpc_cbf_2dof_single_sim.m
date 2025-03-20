@@ -14,7 +14,7 @@ if firstrun
     settings.N = 20;
     settings.velMax = 2;
     settings.accMax = 5;
-    settings.cbfParms = [0.1, 0.1];
+    settings.cbfParms = [0.2, 0.2];
     % settings.mpcParms = ones(14,1);
     % settings.mpcParms(7:9) = settings.cbfParms;
     settings.obs_rad = 1;
