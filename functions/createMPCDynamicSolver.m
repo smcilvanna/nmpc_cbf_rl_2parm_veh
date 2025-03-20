@@ -185,7 +185,7 @@ function [solver, args, f] = createMPCDynamicSolver(settings)
     if ~cbf_v1
         cbf_k1 = P(11);     % CBF parameter (tunable)
         cbf_k2 = P(12);     % CBF parameter (tunable)
-        cbf_margin = 0.02;
+        cbf_margin = 0.00;
 
         for obs_idx = 1:1
             % Obstacle parameters

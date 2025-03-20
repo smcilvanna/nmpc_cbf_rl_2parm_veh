@@ -26,51 +26,18 @@ Nvals = [10 25 50 75 100];
 settings.DT = 0.1; 
 settings.velMax = 2;
 settings.accMax = 5;
-settings.cbfParms = [0.0, 0.0, 0.0];
+settings.cbfParms = [1.0, 1.0];
 settings.obs_rad = 1;
 settings.veh_rad = 0.55;
 
 [solverStack, argsStack, f] = createSolvers(Nvals,settings);
 
-%% Temp run one sim
-
-ii = 5; settings.N = Nvals(ii);
-settings.cbfParms = [0.3, 1.5, 0.01];
-settings.obs_rad = 2;
-solver = solverStack{ii};
-args   = argsStack{ii};
-
-simdata = simulationLoopDyn(solver,args,f, settings);
-
-
-% Print some time data about sim
-tsteps = size(simdata.states(1:3,:),2) -1;
-tend = tsteps*settings.DT;
-ltime = simdata.looptime;
-steptime = ltime/tsteps * 1000;
-fprintf("\n\n###########################################################\n")
-% fprintf(" Time to create solver    : %f seconds\n",tSolver);
-fprintf(" Time Period Simulated    : %f seconds\n",tend);
-fprintf(" Simulation Time          : %f seconds\n",ltime);
-fprintf(" Average loop time        : %f ms\n",steptime);
-fprintf("###########################################################\n\n")
-
-% finish
-
-disp("Simulation Done")
-
-%% Plots (animated)
-
-staticPlot = false; viewOnScreen = true;
-visualiseSimulation(simdata, staticPlot,viewOnScreen);
-
-
-%% Batch run with different N-solvers
+% Batch run with different N-solvers
 todaydate = datestr(datetime('today'), 'yymmdd');
-runname = "sweep_parm2_dyn_B2n"
+runname = "sweep_ecbf_2parm_A3_N"
 outname = sprintf("./%s_%s.mat",todaydate,runname);
-fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname);
-input("");
+% fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname);
+% input("");
 existList = false;
 if exist("testListOld","var")
     fprintf("\n\nThere is an existing test list, will ignore existing tests...\n\nENTER to begin simulations...\n\n");
@@ -80,19 +47,19 @@ end
 
 % Create test list for simulations
 %   parm2_B2n (17th March) vmax = 2 accmax = 5 N = solverStack
-cbf_k       = [0.01 0.1:0.1:0.9 0.99];
-cbf_alpha   = [ 0.1 1:2:10 10]; 
+cbf_k1      = [0.01 0.1:0.2:0.9 0.99];
+cbf_k2      = cbf_k1; 
 obs         = [1.0 3.0 5.0 7.0 10.0 ];
 Nidx        = 1:numel(Nvals);
 testList    = combinations(cbf_k,cbf_alpha,Nidx,obs);
 clearvars cbf_k cbf_alpha obs Nidx
-
+input(sprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin %d simulations...\n\n",outname,size(testList,1)));
 testList = sortrows(testList,"obs");
 alldata = [];
 
 for i = 1:size(testList,1)
     solverSel = testList.Nidx(i);
-    settings.cbfParms = [ testList.cbf_k(i) ; testList.cbf_alpha(i)];
+    settings.cbfParms = [ testList.cbf_k1(i) ; testList.cbf_k2(i)];
     settings.obs_rad = testList.obs(i);
     settings.N = Nvals(solverSel);
     simdata = simulationLoopDyn(solverStack{solverSel},argsStack{solverSel},f, settings);
@@ -105,15 +72,6 @@ for i = 1:size(testList,1)
 end
 fprintf("Run %05d of %05d complete\nDONE\n\n",i,size(testList,1))
 save(outname,"alldata", "testList");
-
-
-
-
-
-
-
-
-
 
 
 
@@ -145,7 +103,7 @@ if firstrun
     settings.DT = 0.1; 
     settings.velMax = 2;
     settings.accMax = 5;
-    settings.cbfParms = [0.0, 0.0, 0.0];
+    settings.cbfParms = [1.0, 1.0];
     settings.obs_rad = 1;
     settings.veh_rad = 0.55;
     settings.N = 20;
@@ -153,7 +111,7 @@ if firstrun
 end
 todaydate = datestr(datetime('today'), 'yymmdd');
 
-runname = "sweep_parm2_dyn_B2"
+runname = "sweep_ecbf_2parm_A2"
 outname = sprintf("./%s_%s.mat",todaydate,runname);
 
 % existList = false;
@@ -164,19 +122,19 @@ outname = sprintf("./%s_%s.mat",todaydate,runname);
 % end
 
 % Create test list for simulations
-%   parm2_B2 (18th March) vmax = 2 accmax = 5 N = 20, margin added to CBF within mpc
-cbf_k       = [0.01 0.1:0.1:0.9 0.99];
-cbf_alpha   = [ 0.1 1:2:10 10]; 
+%  ecbf_2parm_A1 (20th March) vmax = 2 accmax = 5 N = 20, no margin
+cbf_k1      = [1:2:30];  %[0.01 0.1:0.2:0.9 0.99];
+cbf_k2      = cbf_k1;
 obs         = [1.0 3.0 5.0 7.0 10.0 ]; 
-testList    = combinations(cbf_k,cbf_alpha,obs);
-clearvars cbf_k cbf_alpha obs
+testList    = combinations(cbf_k1, cbf_k2, obs);
+clearvars cbf_k1 cbf_k2 obs
 % User input to confirm start of batch run
 input(sprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin %d simulations...\n\n",outname,size(testList,1)));
 testList = sortrows(testList,"obs");
 alldata = [];
 
 for i = 1:size(testList,1)
-    settings.cbfParms = [ testList.cbf_k(i) ; testList.cbf_alpha(i)];
+    settings.cbfParms = [ testList.cbf_k1(i) ; testList.cbf_k2(i)];
     settings.obs_rad = testList.obs(i);
     simdata = simulationLoopDyn(solver,args,f, settings);
     alldata = [alldata ; simdata];
@@ -286,6 +244,12 @@ save(outname,"alldata", "testList");
 
 
 %% Parameters Run History
+
+%   parm2_B2 (18th March) vmax = 2 accmax = 5 N = 20, margin added to CBF within mpc
+cbf_k       = [0.01 0.1:0.1:0.9 0.99];
+cbf_alpha   = [ 0.1 1:2:10 10]; 
+obs         = [1.0 3.0 5.0 7.0 10.0 ]; 
+testList    = combinations(cbf_k,cbf_alpha,obs);
 
 %   parm2_B1 (17th March) vmax = 2 accmax = 5 N = 20
 cbf_k       = [0.01 0.1:0.1:0.9 0.99];
