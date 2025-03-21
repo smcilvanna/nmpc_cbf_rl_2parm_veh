@@ -16,8 +16,6 @@ ____    ____  _  _
     \__/        |_|   
 %}
 
-
-
 addpath("./functions/");
 addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION #### 
 import casadi.*
@@ -51,7 +49,7 @@ cbf_k1      = [0.01 0.1:0.2:0.9 0.99];
 cbf_k2      = cbf_k1; 
 obs         = [1.0 3.0 5.0 7.0 10.0 ];
 Nidx        = 1:numel(Nvals);
-testList    = combinations(cbf_k,cbf_alpha,Nidx,obs);
+testList    = combinations(cbf_k1,cbf_k2,Nidx,obs);
 clearvars cbf_k cbf_alpha obs Nidx
 input(sprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin %d simulations...\n\n",outname,size(testList,1)));
 testList = sortrows(testList,"obs");
