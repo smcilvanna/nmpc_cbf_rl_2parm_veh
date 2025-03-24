@@ -26,13 +26,13 @@ fprintf("\n\nResults Table Generated.\n\n\n");
 clearvars rfWeights
 
 %% Check test parameter ranges
-k1s = unique(results.k1);
-k2s = unique(results.k2);
-rcbfs = unique(results.rcbf);
+k1s = unique(results.k1)
+k2s = unique(results.k2)
+% rcbfs = unique(results.rcbf);
 
 fprintf("min k1 : %.3f  | max k1 : %.2f\n", min(k1s),max(k1s));
 fprintf("min k2 : %.3f  | max k2 : %.2f\n", min(k2s),max(k2s));
-fprintf("rcbf : %.2f \n", rcbfs);
+% fprintf("rcbf : %.2f \n", rcbfs);
 
 clearvars k1s k2s rcbfs
 
@@ -285,6 +285,7 @@ for i = 1:numel(figs)
 end
 
 input("<ENTER> to clear figures");
+clearvars i figs
 close all;
 %% Plot data per obstacle, optional filter by cbf k2 & N
 close all
@@ -321,7 +322,58 @@ clearvars cbfk1Set cbfk2Set fig i ii k2Tgt lbl lg obsSet obsTgt x y idx staticPl
 
 
 
+%% Plot best parameters per test list
+close all
+obsSet      = unique(results.orad1);
+nSet        = unique(results.N);
+bestResults = [];
+fig1 = figure();
+fig2 = figure();
+fig3 = figure();
+
+for ii = 1:numel(obsSet)
+    obsTgt = obsSet(ii);
+    filterResults  = results( ismember(results.orad1,obsTgt),: );
+    filterResults = sortrows(filterResults,"reward","descend");
+    bestk1 = filterResults.k1(1);
+    bestk2 = filterResults.k2(1);
+    bestRatio = bestk1/bestk2;
+    figure(fig1); scatter(obsTgt,bestk1,LineWidth=2,DisplayName=" "); hold on;
+    figure(fig2); scatter(obsTgt,bestk2,LineWidth=2,DisplayName=" "); hold on;
+    figure(fig3); scatter(obsTgt,bestRatio,LineWidth=2,DisplayName=" "); hold on;
+end
+figure(fig1);
+xlabel('obsTgt');
+ylabel('bestk1');
+% legend('show');
+title('Best k1 vs obsTgt');
+
+figure(fig2);
+xlabel('obsTgt');
+ylabel('bestk2');
+% legend('show');
+title('Best k2 vs obsTgt');
+    % ylim([-1 1])
+    % title("CBF-Settings Rewards");
+    % subtitle(sprintf("Obstacle Radius %4.1f m",obsTgt))
+    % lg = legend();
+    % title(lg,"CBF{\alpha}")
+    % xlabel("CBF_{k1}");
+    % ylabel("Reward [-1 1]");
+
 %%
+clearvars cbfk1Set cbfk2Set fig i ii k2Tgt lbl lg obsSet obsTgt x y filterResults
+
+for i = 1:numel(figs)
+    figure(figs(i));
+end
+
+input("<ENTER> to clear figures");
+clearvars i figs
+close all;
+
+
+
 %%
 %%
 %%

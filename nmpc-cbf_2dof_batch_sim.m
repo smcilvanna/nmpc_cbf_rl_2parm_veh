@@ -109,7 +109,7 @@ if firstrun
 end
 todaydate = datestr(datetime('today'), 'yymmdd');
 
-runname = "sweep_ecbf_2parm_A2"
+runname = "sweep_ecbf_2parm_A4"
 outname = sprintf("./%s_%s.mat",todaydate,runname);
 
 % existList = false;
@@ -120,10 +120,10 @@ outname = sprintf("./%s_%s.mat",todaydate,runname);
 % end
 
 % Create test list for simulations
-%  ecbf_2parm_A1 (20th March) vmax = 2 accmax = 5 N = 20, no margin
-cbf_k1      = [1:2:30];  %[0.01 0.1:0.2:0.9 0.99];
+%  ecbf_2parm_A4 (24th March) vmax = 2 accmax = 5 N = 20, no margin
+cbf_k1      = 1:1:80;
 cbf_k2      = cbf_k1;
-obs         = [1.0 3.0 5.0 7.0 10.0 ]; 
+obs         = [1.0 3.0 5.0 7.0 10.0 15.0 ]; 
 testList    = combinations(cbf_k1, cbf_k2, obs);
 clearvars cbf_k1 cbf_k2 obs
 % User input to confirm start of batch run
@@ -242,6 +242,11 @@ save(outname,"alldata", "testList");
 
 
 %% Parameters Run History
+
+%  ecbf_2parm_A1 (20th March) vmax = 2 accmax = 5 N = 20, no margin
+cbf_k1      = [1:2:30];  %[0.01 0.1:0.2:0.9 0.99];
+cbf_k2      = cbf_k1;
+obs         = [1.0 3.0 5.0 7.0 10.0 ]; 
 
 %   parm2_B2 (18th March) vmax = 2 accmax = 5 N = 20, margin added to CBF within mpc
 cbf_k       = [0.01 0.1:0.1:0.9 0.99];
