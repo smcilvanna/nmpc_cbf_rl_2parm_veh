@@ -121,7 +121,7 @@ outname = sprintf("./%s_%s.mat",todaydate,runname);
 
 % Create test list for simulations
 %  ecbf_2parm_A4 (24th March) vmax = 2 accmax = 5 N = 20, no margin
-cbf_k1      = 1:1:80;
+cbf_k1      = 1:2:100;
 cbf_k2      = cbf_k1;
 obs         = [1.0 3.0 5.0 7.0 10.0 15.0 ]; 
 testList    = combinations(cbf_k1, cbf_k2, obs);

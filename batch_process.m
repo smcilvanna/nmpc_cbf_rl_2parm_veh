@@ -19,10 +19,10 @@ addpath("./functions/");
 
 %% Read in all simulated data and get reward from each run
 addpath("./functions/");
-rfWeights = [1 1 1]; % [path end-sep ave-vel]
+rfWeights = [5 1 1]; % [path end-sep ave-vel]
 [results, ~] = processResultsTable(alldata);
 fprintf("\n\nResults Table Generated.\n\n\n");
-
+figure(plotBestParams(results,rfWeights))
 clearvars rfWeights
 
 %% Check test parameter ranges
@@ -322,59 +322,8 @@ clearvars cbfk1Set cbfk2Set fig i ii k2Tgt lbl lg obsSet obsTgt x y idx staticPl
 
 
 
-%% Plot best parameters per test list
-close all
-obsSet      = unique(results.orad1);
-nSet        = unique(results.N);
-bestResults = [];
-fig1 = figure();
-fig2 = figure();
-fig3 = figure();
-
-for ii = 1:numel(obsSet)
-    obsTgt = obsSet(ii);
-    filterResults  = results( ismember(results.orad1,obsTgt),: );
-    filterResults = sortrows(filterResults,"reward","descend");
-    bestk1 = filterResults.k1(1);
-    bestk2 = filterResults.k2(1);
-    bestRatio = bestk1/bestk2;
-    figure(fig1); scatter(obsTgt,bestk1,LineWidth=2,DisplayName=" "); hold on;
-    figure(fig2); scatter(obsTgt,bestk2,LineWidth=2,DisplayName=" "); hold on;
-    figure(fig3); scatter(obsTgt,bestRatio,LineWidth=2,DisplayName=" "); hold on;
-end
-figure(fig1);
-xlabel('obsTgt');
-ylabel('bestk1');
-% legend('show');
-title('Best k1 vs obsTgt');
-
-figure(fig2);
-xlabel('obsTgt');
-ylabel('bestk2');
-% legend('show');
-title('Best k2 vs obsTgt');
-    % ylim([-1 1])
-    % title("CBF-Settings Rewards");
-    % subtitle(sprintf("Obstacle Radius %4.1f m",obsTgt))
-    % lg = legend();
-    % title(lg,"CBF{\alpha}")
-    % xlabel("CBF_{k1}");
-    % ylabel("Reward [-1 1]");
-
-%%
-clearvars cbfk1Set cbfk2Set fig i ii k2Tgt lbl lg obsSet obsTgt x y filterResults
-
-for i = 1:numel(figs)
-    figure(figs(i));
-end
-
-input("<ENTER> to clear figures");
-clearvars i figs
-close all;
 
 
-
-%%
 %%
 %%
 
@@ -382,9 +331,9 @@ close all;
 
 
 %% LOCAL FUNCTIONS
-
 function [results, resultsObs] = processResultsTable(alldata)
     results = [];
+    fprintf("\nProcessing :      ")
     for i = 1:size(alldata,1)
         cbf = alldata(i).cbf;
         obs1 = alldata(i).obstacle(3,1);
@@ -404,7 +353,7 @@ function [results, resultsObs] = processResultsTable(alldata)
         results = [results ; array2table(   [cbf',      obs1,   obs2,       reward,     dist,       opdst,        fsep,       msep      aveVel,     maxVel,     stime,     i, N], ...
                             "VariableNames",["k1","k2", "orad1","orad2",    "reward",   "pathDist", "optimalDist","finishSep","minSep", "aveVel",   "maxVel",   "simTime", "allIdx", "N"])];
         if mod(i,1000)==0
-            disp(i)
+            fprintf("\b\b\b\b\b%5d",i)
         end
     end
     %results = sortrows(results,"obs_rad");
@@ -418,8 +367,6 @@ function [results, resultsObs] = processResultsTable(alldata)
     % end
     resultsObs = [];
 end
-
-
 
 function plotPath(fig, simdata, orad)
 % PLOTPATH Plot the path of a simulated run
@@ -475,7 +422,6 @@ function plotPath(fig, simdata, orad)
 
 end
 
-
 function [best, obsfig] = plotResults(ftable,show)
     
     if nargin < 2
@@ -520,4 +466,80 @@ function [best, obsfig] = plotResults(ftable,show)
     ylabel('k2 values');
     title(sprintf('%.03 m Obstacle Rewards',obs));
 
+end
+
+function tiled_fig = plotBestParams(results,weights)
+% Plot best parameters per test list
+
+    obsSet      = unique(results.orad1);
+    nSet        = unique(results.N);
+    bestResults = [];
+    fig1 = figure(Visible="off"); ax1 = axes(fig1);
+    fig2 = figure(Visible="off"); ax2 = axes(fig2);
+    fig3 = figure(Visible="off"); ax3 = axes(fig3);
+    
+    for ii = 1:numel(obsSet)
+        obsTgt = obsSet(ii);
+        if obsTgt > 11
+            break
+        end
+        filterResults  = results( ismember(results.orad1,obsTgt),: );
+        filterResults = sortrows(filterResults,"reward","descend");
+        bestk1 = filterResults.k1(1);
+        bestk2 = filterResults.k2(1);
+        bestRatio = bestk1/bestk2;
+        scatter(ax1, obsTgt, bestk1,   'LineWidth', 2, 'MarkerEdgeColor', 'blue', 'MarkerFaceColor', 'blue', 'Marker', 'o', 'SizeData', 25); hold(ax1,"on");
+        scatter(ax2, obsTgt,bestk2,    'LineWidth', 2, 'MarkerEdgeColor', 'green', 'MarkerFaceColor', 'green', 'Marker', 'o', 'SizeData', 25); hold(ax2,"on");
+        scatter(ax3, obsTgt,bestRatio, 'LineWidth', 2, 'MarkerEdgeColor', 'red', 'MarkerFaceColor', 'red', 'Marker', 'o', 'SizeData', 36); hold(ax3,"on");
+    end
+    
+    xlabel(ax1,'obsTgt');
+    ylabel(ax1,'bestk1');
+    title(ax1,'Best k1 vs obsTgt');
+    
+    xlabel(ax2,'obsTgt');
+    ylabel(ax2,'bestk2');
+    title(ax2,'Best k2 vs obsTgt');
+    
+    xlabel(ax3, 'obsTgt');
+    ylabel(ax3, 'bestRatio');
+    title(ax3, 'Best Ratio vs obsTgt');
+    
+    tiled_fig = figure(Visible="off");   % Create a new figure for the tiled layout
+    tl = tiledlayout(tiled_fig, 3, 1);
+    
+    % Copy contents of fig1
+    t1 = nexttile(tl);
+    fig1_contents = get(ax1, 'Children');
+    copyobj(fig1_contents, t1);
+    % xlabel(t1, 'obsTgt');
+    ylabel(t1, 'k1');
+    title(t1, 'Best k1');
+    grid(t1, 'on');
+
+    % Copy contents of fig2
+    t2 = nexttile(tl);
+    fig2_contents = get(ax2, 'Children');
+    copyobj(fig2_contents, t2);
+    % xlabel(t2, 'obsTgt');
+    ylabel(t2, 'k2');
+    title(t2, 'Best k2');
+    grid(t2, 'on');
+
+    % Copy contents of fig3
+    t3 = nexttile(tl);
+    fig3_contents = get(ax3, 'Children');
+    copyobj(fig3_contents, t3);
+    xlabel(t3, 'Obstacle Radius (m)');
+    ylabel(t3, 'k1/k2');
+    title(t3, 'Best Ratio');
+    grid(t3, 'on');
+    
+    % Adjust layout if needed
+    tl.TileSpacing = 'compact';
+    tl.Padding = 'compact';
+    title(tl,"2 Parameter CBF",'FontWeight', 'bold', 'FontSize', 14)
+    subtitle(tl,sprintf("Weights [%.2f %.2f %.2f]",weights(1),weights(2),weights(3) ) , 'FontSize', 10);
+    
+    % clearvars best* filter* ii nSet obsSet obsTgt ax* fig* t1 t2 t3 tiled_fig
 end
