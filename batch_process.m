@@ -19,8 +19,8 @@ addpath("./functions/");
 
 %% Read in all simulated data and get reward from each run
 addpath("./functions/");
-rfWeights = [5 1 1]; % [path end-sep ave-vel]
-[results, ~] = processResultsTable(alldata);
+rfWeights = [1 1 1]; % [path end-sep ave-vel]
+[results, ~] = processResultsTable(alldata, rfWeights);
 fprintf("\n\nResults Table Generated.\n\n\n");
 figure(plotBestParams(results,rfWeights))
 clearvars rfWeights
@@ -287,7 +287,7 @@ end
 input("<ENTER> to clear figures");
 clearvars i figs
 close all;
-%% Plot data per obstacle, optional filter by cbf k2 & N
+%% Plot data per obstacle, optional filter by cbf k2 & Nd
 close all
 obsSet      = unique(results.orad1);
 cbfk1Set    = unique(results.k1);
@@ -324,14 +324,37 @@ clearvars cbfk1Set cbfk2Set fig i ii k2Tgt lbl lg obsSet obsTgt x y idx staticPl
 
 
 
-%%
+%% Generate plots for different weights
+
+% generate list of weight vectors
+numDivisions = 10;
+weightVectors = [];
+for wp = 0:numDivisions
+    for ws = 0:(numDivisions - wp)
+        wv = numDivisions - wp - ws;
+        % Normalize weights to ensure they sum to 1
+        weights = [wp, ws, wv] / numDivisions;
+        weightVectors = [weightVectors; weights]; % Append to list
+    end
+end
+
+
+for i = 1:length(weightVectors)
+    rfWeights = weightVectors(i,:)
+    [results, ~] = processResultsTable(alldata,rfWeights);
+    fprintf("\n\nResults Table Generated.\n\n\n");
+    exportgraphics(plotBestParams(results,rfWeights),sprintf("./temp_data/img/weightCompare_%2d.jpg",i),"Append",false)
+end
+
+clearvars numDivisions weights wp ws wv rfWeights i 
+
 %%
 
 
 
 
 %% LOCAL FUNCTIONS
-function [results, resultsObs] = processResultsTable(alldata)
+function [results, resultsObs] = processResultsTable(alldata, weights)
     results = [];
     fprintf("\nProcessing :      ")
     for i = 1:size(alldata,1)
@@ -340,7 +363,7 @@ function [results, resultsObs] = processResultsTable(alldata)
         N = alldata(i).N;
         % obs2 = alldata(i).obstacle(3,2);
         obs2 = obs1;
-        rewardout = getReward(alldata(i));
+        rewardout = getReward(alldata(i), weights);
         reward = rewardout.reward;
         dist = rewardout.pathDist;
         opdst = rewardout.optDist;
