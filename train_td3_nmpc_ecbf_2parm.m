@@ -6,8 +6,8 @@ blah
 %% 
 cd /home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh
 addpath("functions/");
-addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION #### 
-
+addpath('/home/sm/matlab/com/casadi-3.6.7/');
+clc; disp("Done")
 %% Setup the NMPC Solver for Environment
 import casadi.*
 setnmpc.DT = 0.1; 
@@ -17,14 +17,16 @@ setnmpc.cbfParms = [1.0, 1.0]; % initial values, gets updated in parameters args
 setnmpc.obs_rad = 1;           % initial values, gets updated in parameters args
 setnmpc.veh_rad = 0.55;
 setnmpc.N = 20;
-[solver, args, f] = createMPCDynamicSolver(setnmpc);
-
+nmpcSolver = struct;
+nmpcSolver.settings = setnmpc;
+[nmpcSolver.solver , nmpcSolver.args, nmpcSolver.f] = createMPCDynamicSolver(setnmpc);
+clearvars setnmpc
 
 %% Setup Environment For NMPC-CBF 2 parameter training
 
 obsInfo = rlFiniteSetSpec([0.5 1.0 5.0 10.0]);
 actInfo = rlNumericSpec([2 1], 'LowerLimit', [1; 1], 'UpperLimit', [100; 100]);
-env = rlFunctionEnv(obsInfo, actInfo, @(action, loggedSignals) stepFunction(action, loggedSignals, solver, args, f), @() resetFunction());
+env = rlFunctionEnv(obsInfo, actInfo, @(action, loggedSignals) stepFunction(action, loggedSignals, nmpcSolver), @() resetFunction());
 
 %% TD3 Network Setup
 % % Create the actor and critic networks
@@ -134,10 +136,17 @@ trainingStats = train(agent, env, trainOpts);
 %% LOCAL FUNCTIONS
 
 % Step function (one step per episode)
-function [nextObs, reward, isDone, loggedSignals] = stepFunction(action, loggedSignals, solver, args, f)
+function [nextObs, reward, isDone, loggedSignals] = stepFunction(action, loggedSignals, nmpcSolver)
+    % create settings struct for simulation scenario
     settings.cbfParms = [ action(1) ; action(2) ];
     settings.obs_rad = loggedSignals.obs;
-    simdata = simulationLoopDyn(solver,args,f, settings);
+    settings.veh_rad = nmpcSolver.settings.veh_rad;
+    settings.N = nmpcSolver.settings.N;
+    settings.DT = nmpcSolver.settings.DT;
+    settings.endSepTol = 0.1;
+    settings.maxSimTime = 40;
+    % Run simulation with current settings
+    simdata = simulationLoopDyn(nmpcSolver.solver,nmpcSolver.args,nmpcSolver.f, settings);
     reward = getReward(simdata);    % set weights in getReward function
     nextObs = settings.obs;         % In this case, obs doesn't change
     isDone = true;                  % One step per episode so done after each step

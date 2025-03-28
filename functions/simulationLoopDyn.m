@@ -6,6 +6,8 @@ function simdata = simulationLoopDyn(solver,args,f, settings)
     DT          = settings.DT;
     % mpcParms    = settings.mpcParms;
     veh_rad     = settings.veh_rad;         % vehicle radius
+    maxSimTime  = settings.maxSimTime;
+    endSepTol   = settings.endSepTol;
 
     if numel(cbfParms) ~= 2
         fprintf("Error, number of cbf parameters incorrect, expected 2 got %d\n", numel(cbfParms));
@@ -33,7 +35,6 @@ function simdata = simulationLoopDyn(solver,args,f, settings)
     target_state = goal;                            % Reference posture.
     target_state(4:5) = 0;
     state_history(:,1) = current_state;             % append this array at each step with current state
-    time_limit = 30;                                % Maximum simulation time (seconds)
     sim_time_history(1) = current_time;             % append this array at each step with sim time
     
     control_horizon = zeros(N,2);                   % Controls for N horizon steps
@@ -48,7 +49,7 @@ function simdata = simulationLoopDyn(solver,args,f, settings)
 
     % Start Simulation Loop
     main_loop = tic;
-    while(norm((current_state(1:2) - target_state(1:2)),2) > 0.1 && mpciter < time_limit / DT)
+    while(norm((current_state(1:2) - target_state(1:2)),2) > endSepTol && mpciter < (maxSimTime/DT) )
         
                       % states(3)  target(3)    nObs     obstacles  RL-parms     
     %   P = SX.sym('P', n_states + n_pos_ref    +1     + 15         + 18      );  % 40x1 Parameter vector, updated every call
