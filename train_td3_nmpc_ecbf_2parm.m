@@ -29,99 +29,150 @@ actInfo = rlNumericSpec([2 1], 'LowerLimit', [1; 1], 'UpperLimit', [100; 100]);
 env = rlFunctionEnv(obsInfo, actInfo, @(action, loggedSignals) stepFunction(action, loggedSignals, nmpcSolver), @() resetFunction());
 
 %% TD3 Network Setup
-% % Create the actor and critic networks
-% statePath = [
-%     imageInputLayer([1 1 1], 'Normalization', 'none', 'Name', 'state')
-%     fullyConnectedLayer(64, 'Name', 'fc1')
-%     reluLayer('Name', 'relu1')
-%     fullyConnectedLayer(64, 'Name', 'fc2')
-%     reluLayer('Name', 'relu2')
-%     fullyConnectedLayer(2, 'Name', 'out')
-% ];
-% actorNet = layerGraph(statePath);
-% 
-% statePath = [
-%     imageInputLayer([1 1 1], 'Normalization', 'none', 'Name', 'state')
-%     fullyConnectedLayer(64, 'Name', 'fc1')
-%     reluLayer('Name', 'relu1')
-%     fullyConnectedLayer(64, 'Name', 'fc2')
-%     reluLayer('Name', 'relu2')
-% ];
-% actionPath = [
-%     imageInputLayer([2 1 1], 'Normalization', 'none', 'Name', 'action')
-%     fullyConnectedLayer(64, 'Name', 'fc3')
-% ];
-% commonPath = [
-%     additionLayer(2, 'Name', 'add')
-%     reluLayer('Name', 'relu3')
-%     fullyConnectedLayer(1, 'Name', 'out')
-% ];
-% criticNet = layerGraph(statePath);
-% criticNet = addLayers(criticNet, actionPath);
-% criticNet = addLayers(criticNet, commonPath);
-% criticNet = connectLayers(criticNet, 'relu2', 'add/in1');
-% criticNet = connectLayers(criticNet, 'fc3', 'add/in2');
-% 
-% % Create the agent
-% agent = rlTD3Agent(actor(actorNet, obsInfo, actInfo), critic(criticNet, obsInfo, actInfo), ...
-%     'SampleTime', 1, ...
-%     'ExperienceBufferLength', 1e6, ...
-%     'MiniBatchSize', 128);
-% 
-% % Set up training options
-% trainOpts = rlTrainingOptions(...
-%     'MaxEpisodes', 1000, ...
-%     'MaxStepsPerEpisode', 1, ...
-%     'ScoreAveragingWindowLength', 100, ...
-%     'Verbose', false, ...
-%     'Plots', 'training-progress');
 
-% Define the actor network
+% Actor Network
 actorLayers = [
-    imageInputLayer([1 1 1], 'Normalization', 'none', 'Name', 'state')
+    featureInputLayer(1, 'Name', 'state', 'Normalization', 'none')
     fullyConnectedLayer(64, 'Name', 'fc1')
     reluLayer('Name', 'relu1')
     fullyConnectedLayer(64, 'Name', 'fc2')
     reluLayer('Name', 'relu2')
-    fullyConnectedLayer(2, 'Name', 'out')
+    fullyConnectedLayer(2, 'Name', 'action')  % Output layer must match action dimensions
 ];
-actorNet = layerGraph(actorLayers);
 
-% Define the critic network (two Q-networks for TD3)
-criticLayers = [
-    imageInputLayer([1 1 1], 'Normalization', 'none', 'Name', 'state')
-    fullyConnectedLayer(64, 'Name', 'fc1')
-    reluLayer('Name', 'relu1')
+% Validate and create actor
+assert(isequal(obsInfo.Dimension, [1 1]), 'Observation spec mismatch')
+assert(isequal(actInfo.Dimension, [2 1]), 'Action spec mismatch')
+actor = rlContinuousDeterministicActor(layerGraph(actorLayers), obsInfo, actInfo);
+
+%% TD3 Critic Networks Setup
+% Critic Network Construction
+
+% Create input layers for state and action
+obsInput = featureInputLayer(1, 'Name', 'state', 'Normalization', 'none');
+actInput = featureInputLayer(2, 'Name', 'action', 'Normalization', 'none');
+
+% Build separate processing paths
+obsPath = [
+    obsInput
+    fullyConnectedLayer(64, 'Name', 'obs_fc1')
+    reluLayer('Name', 'obs_relu')
+];
+
+actPath = [
+    actInput
+    fullyConnectedLayer(64, 'Name', 'act_fc1')
+    reluLayer('Name', 'act_relu')
+];
+
+% Common processing after concatenation
+commonPath = [
+    concatenationLayer(1, 2, 'Name', 'concat')
     fullyConnectedLayer(64, 'Name', 'fc2')
-    reluLayer('Name', 'relu2')
-    fullyConnectedLayer(1, 'Name', 'out')
+    reluLayer('Name', 'common_relu')
+    fullyConnectedLayer(1, 'Name', 'QValue')
 ];
-criticNet = layerGraph(criticLayers);
 
-% Create the TD3 agent
-agent = rlTD3Agent(actor(actorNet, obsInfo, actInfo), critic(criticNet, obsInfo, actInfo), ...
-    'SampleTime', 1, ...
-    'ExperienceBufferLength', 1000, ...
-    'MiniBatchSize', batch_size, ...
-    'DiscountFactor', gamma, ...
-    'ActorLearningRate', learning_rate, ...
-    'CriticLearningRate', learning_rate, ...
-    'TargetSmoothFactor', 0.05, ...
-    'ExplorationModel', rlAdditiveGaussianExploration(action_noise), ...
-    'PolicyUpdateFrequency', 1);
+% Assemble layer graph properly
+criticNet = layerGraph();
+criticNet = addLayers(criticNet, obsPath);
+criticNet = addLayers(criticNet, actPath);
+criticNet = addLayers(criticNet, commonPath);
 
-% Set up training options
+% Connect layers explicitly
+criticNet = connectLayers(criticNet, 'obs_relu', 'concat/in1');
+criticNet = connectLayers(criticNet, 'act_relu', 'concat/in2');
+
+%% Create Twin Critics with Different Initial Weights
+% First critic
+critic1 = rlQValueFunction(criticNet, obsInfo, actInfo,...
+    'ObservationInputNames','state',...
+    'ActionInputNames','action');
+
+% Second critic with perturbed weights
+critic2 = rlQValueFunction(criticNet, obsInfo, actInfo,...
+    'ObservationInputNames','state',...
+    'ActionInputNames','action');
+
+% Apply small random perturbation to second critic's weights
+params = getLearnableParameters(critic1);
+perturbedParams = cellfun(@(x) x + 0.01*randn(size(x)), params, 'UniformOutput', false);
+critic2 = setLearnableParameters(critic2, perturbedParams);
+
+%% TD3 Agent Configuration
+agentOpts = rlTD3AgentOptions(...
+    'SampleTime', 1,...
+    'ExperienceBufferLength', 1000,...
+    'MiniBatchSize', 128,...
+    'DiscountFactor', 0.99,...
+    'ActorLearningRate', 1e-3,...  
+    'CriticLearningRate', 1e-3,...
+    'TargetSmoothFactor', 0.05,...  
+    'TargetUpdateFrequency', 2,...
+    'PolicyUpdateFrequency', 1,...
+    'ExplorationModel', rlGaussianNoise(0.1),...  % Correct exploration syntax
+    'ActorOptimizerOptions', rlOptimizerOptions('GradientThreshold', 1),...
+    'CriticOptimizerOptions', rlOptimizerOptions('GradientThreshold', 1));
+
+%% Create TD3 Agent
+agent = rlTD3Agent(actor, [critic1 critic2], agentOpts);
+
+%% Training Configuration
 trainOpts = rlTrainingOptions(...
-    'MaxEpisodes', 1000, ...
-    'MaxStepsPerEpisode', 1, ...
-    'ScoreAveragingWindowLength', 100, ...
-    'Verbose', true, ...
-    'Plots', 'training-progress', ...
-    'StopTrainingCriteria', 'AverageReward', ...
-    'StopTrainingValue', 200, ...
-    'SaveAgentCriteria', 'EpisodeReward', ...
-    'SaveAgentValue', 200);
+    'MaxEpisodes', 1000,...
+    'MaxStepsPerEpisode', 1,...
+    'ScoreAveragingWindowLength', 100,...
+    'Verbose', true,...
+    'Plots', 'training-progress',...
+    'StopTrainingCriteria', 'AverageReward',...
+    'StopTrainingValue', 200,...
+    'SaveAgentCriteria', 'EpisodeReward',...
+    'SaveAgentValue', 200,...
+    'SaveAgentDirectory', 'trained_agents');
 
+%% Network Validation (Add Before Training)
+% Verify actor network
+disp('Actor Network:')
+analyzeNetwork(actor)
+
+% Verify critic networks
+disp('Critic 1 Network:')
+analyzeNetwork(critic1)
+disp('Critic 2 Network:')
+analyzeNetwork(critic2)
+
+
+% %% Agent Options (Add Gradient Clipping)
+% agentOpts = rlTD3AgentOptions(...
+%     'SampleTime', 1,...
+%     'ExperienceBufferLength', 1000,...
+%     'MiniBatchSize', batch_size,...
+%     'DiscountFactor', gamma,...
+%     'ActorLearningRate', learning_rate,...
+%     'CriticLearningRate', learning_rate,...
+%     'TargetSmoothFactor', 0.05,...
+%     'ExplorationModel', rlAdditiveGaussianExploration(action_noise),...
+%     'PolicyUpdateFrequency', 1,...
+%     'TargetUpdateFrequency', 1,...
+%     'ActorOptimizerOptions', rlOptimizerOptions('GradientThreshold', 1),...
+%     'CriticOptimizerOptions', rlOptimizerOptions('GradientThreshold', 1));
+% 
+% %% Training Options (Add Parallel Computing)
+% trainOpts = rlTrainingOptions(...
+%     'MaxEpisodes', 1000,...
+%     'MaxStepsPerEpisode', 1,...
+%     'ScoreAveragingWindowLength', 100,...
+%     'Verbose', true,...
+%     'Plots', 'training-progress',...
+%     'UseParallel', false,...  % Set to true if using parallel workers
+%     'StopTrainingCriteria', 'AverageReward',...
+%     'StopTrainingValue', 200,...
+%     'SaveAgentCriteria', 'EpisodeReward',...
+%     'SaveAgentValue', 200,...
+%     'SaveAgentDirectory', 'savedAgents');
+% 
+% % Add callback for best agent saving
+% % trainOpts.SaveAgentCallback = @(agent) saveAgent(agent, "BestAgent.mat");
 
 %% Train the agent
 trainingStats = train(agent, env, trainOpts);
@@ -137,9 +188,15 @@ trainingStats = train(agent, env, trainOpts);
 
 % Step function (one step per episode)
 function [nextObs, reward, isDone, loggedSignals] = stepFunction(action, loggedSignals, nmpcSolver)
+    settings = struct;
+    % Need this to handle the initial stepFunction validation before the reset function is run
+    if ~isfield(loggedSignals, 'obs') || isempty(loggedSignals.obs)
+        settings.obs_rad = 1.0;
+    else
+        settings.obs_rad = loggedSignals.obs;
+    end
     % create settings struct for simulation scenario
     settings.cbfParms = [ action(1) ; action(2) ];
-    settings.obs_rad = loggedSignals.obs;
     settings.veh_rad = nmpcSolver.settings.veh_rad;
     settings.N = nmpcSolver.settings.N;
     settings.DT = nmpcSolver.settings.DT;
@@ -148,7 +205,7 @@ function [nextObs, reward, isDone, loggedSignals] = stepFunction(action, loggedS
     % Run simulation with current settings
     simdata = simulationLoopDyn(nmpcSolver.solver,nmpcSolver.args,nmpcSolver.f, settings);
     reward = getReward(simdata);    % set weights in getReward function
-    nextObs = settings.obs;         % In this case, obs doesn't change
+    nextObs = settings.obs_rad;     % In this case, obs doesn't change as will be modified by reset function
     isDone = true;                  % One step per episode so done after each step
 end
 
