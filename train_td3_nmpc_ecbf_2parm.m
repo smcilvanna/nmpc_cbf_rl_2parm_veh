@@ -20,15 +20,14 @@ setnmpc.N = 20;
 nmpcSolver = struct;
 nmpcSolver.settings = setnmpc;
 [nmpcSolver.solver , nmpcSolver.args, nmpcSolver.f] = createMPCDynamicSolver(setnmpc);
-clearvars setnmpc
-
-%% Setup Environment For NMPC-CBF 2 parameter training
+clearvars setnmpc; disp("NMPC Solver Created");
+% Setup Environment For NMPC-CBF 2 parameter training
 
 obsInfo = rlFiniteSetSpec([0.5 1.0 5.0 10.0]);
 actInfo = rlNumericSpec([2 1], 'LowerLimit', [1; 1], 'UpperLimit', [100; 100]);
 env = rlFunctionEnv(obsInfo, actInfo, @(action, loggedSignals) stepFunction(action, loggedSignals, nmpcSolver), @() resetFunction());
-
-%% TD3 Network Setup
+disp("RL Environment Created");
+% TD3 Network Setup
 
 % Actor Network
 actorLayers = [
@@ -44,8 +43,8 @@ actorLayers = [
 assert(isequal(obsInfo.Dimension, [1 1]), 'Observation spec mismatch')
 assert(isequal(actInfo.Dimension, [2 1]), 'Action spec mismatch')
 actor = rlContinuousDeterministicActor(layerGraph(actorLayers), obsInfo, actInfo);
-
-%% TD3 Critic Networks Setup
+disp("RL Actor Created");
+% TD3 Critic Networks Setup
 % Critic Network Construction
 
 % Create input layers for state and action
@@ -83,7 +82,7 @@ criticNet = addLayers(criticNet, commonPath);
 criticNet = connectLayers(criticNet, 'obs_relu', 'concat/in1');
 criticNet = connectLayers(criticNet, 'act_relu', 'concat/in2');
 
-%% Create Twin Critics with Different Initial Weights
+% Create Twin Critics with Different Initial Weights
 % First critic
 critic1 = rlQValueFunction(criticNet, obsInfo, actInfo,...
     'ObservationInputNames','state',...
@@ -98,89 +97,44 @@ critic2 = rlQValueFunction(criticNet, obsInfo, actInfo,...
 params = getLearnableParameters(critic1);
 perturbedParams = cellfun(@(x) x + 0.01*randn(size(x)), params, 'UniformOutput', false);
 critic2 = setLearnableParameters(critic2, perturbedParams);
-
-%% TD3 Agent Configuration
+disp("RL Critics Created");
+% TD3 Agent Configuration
 agentOpts = rlTD3AgentOptions(...
     'SampleTime', 1,...
     'ExperienceBufferLength', 10000,...
     'MiniBatchSize', 32,...
-    'DiscountFactor', 0.00,...
+    'DiscountFactor', 0.0001,...
     'TargetSmoothFactor', 0.05,...  
     'TargetUpdateFrequency', 2,...
     'ActorOptimizerOptions', rlOptimizerOptions('LearnRate',5e-4), ...
     'CriticOptimizerOptions',rlOptimizerOptions('LearnRate',5e-4), ...
-    'PolicyUpdateFrequency', 1);
-agentOpts.ExplorationModel.StandardDeviation = [0.2, 0.2];
+    'PolicyUpdateFrequency', 2);
+agentOpts.ExplorationModel.StandardDeviation = [0.2 ; 0.2];
 agentOpts.ExplorationModel.StandardDeviationDecayRate = 0;
 
-%% Create TD3 Agent
+% Create TD3 Agent
 agent = rlTD3Agent(actor, [critic1 critic2], agentOpts);
-
+disp("RL TD3 Agent Created");
 %% Training Configuration
 trainOpts = rlTrainingOptions(...
-    'MaxEpisodes', 1000,...
+    'MaxEpisodes', 4000,...                       % Run for set number of episodes
     'MaxStepsPerEpisode', 1,...
     'ScoreAveragingWindowLength', 100,...
     'Verbose', true,...
     'Plots', 'training-progress',...
-    'StopTrainingCriteria', 'AverageReward',...
-    'StopTrainingValue', 200,...
-    'SaveAgentCriteria', 'EpisodeReward',...
-    'SaveAgentValue', 200,...
+    'StopTrainingCriteria', 'None',...            % Don't stop based on reward
+    'SaveAgentCriteria', 'Episodes',...           % Save based on episode count
+    'SaveAgentValue', 1000,...                    % Save every 1000 episodes
     'SaveAgentDirectory', 'trained_agents');
-
-%% Network Validation (Add Before Training)
-% Verify actor network
-disp('Actor Network:')
-analyzeNetwork(actor)
-
-% Verify critic networks
-disp('Critic 1 Network:')
-analyzeNetwork(critic1)
-disp('Critic 2 Network:')
-analyzeNetwork(critic2)
-
-
-% %% Agent Options (Add Gradient Clipping)
-% agentOpts = rlTD3AgentOptions(...
-%     'SampleTime', 1,...
-%     'ExperienceBufferLength', 1000,...
-%     'MiniBatchSize', batch_size,...
-%     'DiscountFactor', gamma,...
-%     'ActorLearningRate', learning_rate,...
-%     'CriticLearningRate', learning_rate,...
-%     'TargetSmoothFactor', 0.05,...
-%     'ExplorationModel', rlAdditiveGaussianExploration(action_noise),...
-%     'PolicyUpdateFrequency', 1,...
-%     'TargetUpdateFrequency', 1,...
-%     'ActorOptimizerOptions', rlOptimizerOptions('GradientThreshold', 1),...
-%     'CriticOptimizerOptions', rlOptimizerOptions('GradientThreshold', 1));
-% 
-% %% Training Options (Add Parallel Computing)
-% trainOpts = rlTrainingOptions(...
-%     'MaxEpisodes', 1000,...
-%     'MaxStepsPerEpisode', 1,...
-%     'ScoreAveragingWindowLength', 100,...
-%     'Verbose', true,...
-%     'Plots', 'training-progress',...
-%     'UseParallel', false,...  % Set to true if using parallel workers
-%     'StopTrainingCriteria', 'AverageReward',...
-%     'StopTrainingValue', 200,...
-%     'SaveAgentCriteria', 'EpisodeReward',...
-%     'SaveAgentValue', 200,...
-%     'SaveAgentDirectory', 'savedAgents');
-% 
-% % Add callback for best agent saving
-% % trainOpts.SaveAgentCallback = @(agent) saveAgent(agent, "BestAgent.mat");
-
+disp("Training Options Set")
 %% Train the agent
+disp(">>> TRAINING START <<<")
 trainingStats = train(agent, env, trainOpts);
 
 
-%%
-
-%%
-
+%% temp
+agent_5kint5k = agent
+trainingStats5i5= trainingStats
 %%
 
 %% LOCAL FUNCTIONS
@@ -203,7 +157,8 @@ function [nextObs, reward, isDone, loggedSignals] = stepFunction(action, loggedS
     settings.maxSimTime = 40;
     % Run simulation with current settings
     simdata = simulationLoopDyn(nmpcSolver.solver,nmpcSolver.args,nmpcSolver.f, settings);
-    reward = getReward(simdata);    % set weights in getReward function
+    rewardout = getReward(simdata);    % set weights in getReward function
+    reward = rewardout.reward;
     nextObs = settings.obs_rad;     % In this case, obs doesn't change as will be modified by reset function
     isDone = true;                  % One step per episode so done after each step
 end
