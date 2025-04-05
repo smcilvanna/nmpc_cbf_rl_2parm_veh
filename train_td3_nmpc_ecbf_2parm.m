@@ -3,11 +3,17 @@ return
 %% 
 blah
 
-%% 
+%% Linux
 cd /home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh
 addpath("functions/");
 addpath('/home/sm/matlab/com/casadi-3.6.7/');
 clc; disp("Done")
+%% Windows (Win 11 Laptop)
+cd("C:\Users\14244039\OneDrive - Queen's University Belfast\win_11_qub\Documents\MATLAB\nmpc_cbf_rl_2parm_veh");
+addpath("functions\");
+addpath("C:\Users\14244039\AppData\Roaming\MathWorks\MATLAB Add-Ons\Collections\casadi-3.7.0-windows64-matlab2018b");
+clc; disp("Done");
+
 %% Setup the NMPC Solver for Environment
 import casadi.*
 setnmpc.DT = 0.1; 
