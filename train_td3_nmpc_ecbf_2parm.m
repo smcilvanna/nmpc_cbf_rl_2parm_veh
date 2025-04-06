@@ -28,10 +28,10 @@ nmpcSolver.settings = setnmpc;
 [nmpcSolver.solver , nmpcSolver.args, nmpcSolver.f] = createMPCDynamicSolver(setnmpc);
 clearvars setnmpc; disp("NMPC Solver Created");
 % Setup Environment For NMPC-CBF 2 parameter training
-
-obsInfo = rlFiniteSetSpec([0.5 1.0 5.0 10.0]);
-actInfo = rlNumericSpec([2 1], 'LowerLimit', [1; 1], 'UpperLimit', [100; 100]);
-env = rlFunctionEnv(obsInfo, actInfo, @(action, loggedSignals) stepFunction(action, loggedSignals, nmpcSolver), @() resetFunction());
+obsSet = 0.5:0.5:10;
+obsInfo = rlFiniteSetSpec(obsSet)%([0.5 1.0 5.0 10.0]);
+actInfo = rlNumericSpec([2 1], 'LowerLimit', [1; 0.1], 'UpperLimit', [60; 0.8]); % action(2) will be k1/k2 ratio rather than k2 as previous
+env = rlFunctionEnv(obsInfo, actInfo, @(action, loggedSignals) stepFunction(action, loggedSignals, nmpcSolver), @() resetFunction(obsSet));
 disp("RL Environment Created");
 % TD3 Network Setup
 
@@ -155,7 +155,9 @@ function [nextObs, reward, isDone, loggedSignals] = stepFunction(action, loggedS
         settings.obs_rad = loggedSignals.obs;
     end
     % create settings struct for simulation scenario
-    settings.cbfParms = [ action(1) ; action(2) ];
+    k1 = action(1);
+    k2 = action(1) / action(2);
+    settings.cbfParms = [ k1 ; k2 ];
     settings.veh_rad = nmpcSolver.settings.veh_rad;
     settings.N = nmpcSolver.settings.N;
     settings.DT = nmpcSolver.settings.DT;
@@ -170,8 +172,8 @@ function [nextObs, reward, isDone, loggedSignals] = stepFunction(action, loggedS
 end
 
 % Define the reset function
-function [initialObs, loggedSignals] = resetFunction()
-    obsSet = [0.5 1.0 5.0 10.0];
+function [initialObs, loggedSignals] = resetFunction(obsSet)
+    % obsSet = [0.5 1.0 5.0 10.0];
     initialObs = obsSet(randi(length(obsSet)));
     loggedSignals.obs = initialObs;
 end
