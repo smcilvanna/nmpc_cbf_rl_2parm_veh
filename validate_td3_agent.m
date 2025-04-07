@@ -17,13 +17,13 @@ clc; disp("Done");
 clearvars -except agent test*
 
 %%
-test.obs = 1.0;
+test.obs = 4.0;
 test.actionOut = getAction(agent,{test.obs});
 disp(test.actionOut{1});
 
 %% Validate TD3 agent Outputs VS Obstacle observation inputs
 clc;
-test.Observations = [0.5, 1.0, 5.0, 10.0]; % Edge cases
+test.Observations = (0.5:0.5:10); % Edge cases
 test.results = cell(length(test.Observations), 4);
 
 for i = 1:length(test.Observations)
