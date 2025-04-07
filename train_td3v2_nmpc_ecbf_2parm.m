@@ -29,7 +29,7 @@ nmpcSolver.settings = setnmpc;
 clearvars setnmpc; disp("NMPC Solver Created");
 % Setup Environment For NMPC-CBF 2 parameter training
 obsSet = 0.5:0.5:10;
-obsInfo = rlFiniteSetSpec(obsSet)%([0.5 1.0 5.0 10.0]);
+obsInfo = rlFiniteSetSpec(obsSet);%([0.5 1.0 5.0 10.0]);
 actInfo = rlNumericSpec([2 1], 'LowerLimit', [1; 0.1], 'UpperLimit', [60; 0.8]); % action(2) will be k1/k2 ratio rather than k2 as previous
 env = rlFunctionEnv(obsInfo, actInfo, @(action, loggedSignals) stepFunction(action, loggedSignals, nmpcSolver), @() resetFunction(obsSet));
 disp("RL Environment Created");
@@ -123,25 +123,27 @@ agent = rlTD3Agent(actor, [critic1 critic2], agentOpts);
 disp("RL TD3 Agent Created");
 %% Training Configuration
 trainOpts = rlTrainingOptions(...
-    'MaxEpisodes', 5000,...                       % Run for set number of episodes
+    'MaxEpisodes', 10,...                       % Run for set number of episodes
     'MaxStepsPerEpisode', 1,...
     'ScoreAveragingWindowLength', 100,...
     'Verbose', true,...
     'Plots', 'training-progress',...
-    'StopTrainingCriteria', 'None',...            % Don't stop based on reward
-    'SaveAgentCriteria', 'Episodes',...           % Save based on episode count
-    'SaveAgentValue', 1000,...                    % Save every 1000 episodes
-    'SaveAgentDirectory', 'trained_agents');
+    'StopTrainingCriteria', 'None');
 disp("Training Options Set")
+
+%% Create Data Logger for episode information
+logger = rlDataLogger();
+
+% Configure Episode Finished Callback
+% logger.EpisodeFinishedFcn = @(info) episodeFinishedCallback(info, logger);
+logger.EpisodeFinishedFcn = @episodeFinishedCallback;
+disp("Episode Data Logger Enabled");
+
 %% Train the agent
 disp(">>> TRAINING START <<<")
-trainingStats = train(agent, env, trainOpts);
-
-
-%% temp
-agent_5kint5k = agent
-trainingStats5i5= trainingStats
-%%
+trainID = "2"; verID = "v2"; fname = "train_td3" + verID + "_" + trainID + ".mat";
+trainingStats = train(agent, env, trainOpts, 'Logger', logger);
+save(fname);
 
 %% LOCAL FUNCTIONS
 
@@ -176,4 +178,14 @@ function [initialObs, loggedSignals] = resetFunction(obsSet)
     % obsSet = [0.5 1.0 5.0 10.0];
     initialObs = obsSet(randi(length(obsSet)));
     loggedSignals.obs = initialObs;
+end
+
+% define logger to record actions/observations during training
+function data = episodeFinishedCallback(info)
+    
+    data.episode = info.EpisodeCount;
+    data.action = info.Experience.Action{1};              % get the episode info
+    data.observation = info.Experience.Observation{1};
+    data.reward = info.Experience.Reward;
+
 end
