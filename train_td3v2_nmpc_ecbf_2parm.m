@@ -128,7 +128,7 @@ agentOpts.ExplorationModel.StandardDeviationDecayRate = 0.01;
 agent = rlTD3Agent(actor, [critic1 critic2], agentOpts);
 disp("RL TD3 Agent Created");
 %% Training Configuration
-numEps = 10;
+numEps = 5000;
 trainOpts = rlTrainingOptions(...
     'MaxEpisodes', numEps,...                       % Run for set number of episodes
     'MaxStepsPerEpisode', 1,...
@@ -152,7 +152,7 @@ disp("Episode Data Logger Enabled");
 
 %% Train the agent
 disp(">>> TRAINING START <<<")
-trainID = "2"; verID = "v2"; fname = "train_td3" + verID + "_" + trainID + ".mat";
+trainID = "3"; verID = "v2"; fname = "train_td3" + verID + "_" + trainID + ".mat";
 trainingStats = train(agent, env, trainOpts, 'Logger', logger);
 save(fname);
 
@@ -173,6 +173,7 @@ action = [0.5; -0.3]; % 2x1 vector
 
 % Step function (one step per episode)
 function [nextObs, reward, isDone, LoggedSignals] = stepFunction(action, loggedSignals, nmpcSolver)
+    assert(numel(action) == 2, 'Action must be a 2-element vector');
     settings = struct;
     % Need this to handle the initial stepFunction validation before the reset function is run
     if ~isfield(loggedSignals, 'obs') || isempty(loggedSignals.obs)
@@ -181,9 +182,9 @@ function [nextObs, reward, isDone, LoggedSignals] = stepFunction(action, loggedS
         settings.obs_rad = denormaliseObservation(loggedSignals.obs);
     end
     % create settings struct for simulation scenario
-    k1 = denormaliseAction(action(1));
-    k2 = action(1) / action(2);
-    k2 = denormaliseAction(k2);
+    dact = denormaliseAction(action);
+    k1 = dact(1);
+    k2 = k1/dact(2);
     settings.cbfParms = [ k1 ; k2 ];
     settings.veh_rad = nmpcSolver.settings.veh_rad;
     settings.N = nmpcSolver.settings.N;
