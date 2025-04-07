@@ -122,16 +122,21 @@ agentOpts.ExplorationModel.StandardDeviationDecayRate = 0;
 agent = rlTD3Agent(actor, [critic1 critic2], agentOpts);
 disp("RL TD3 Agent Created");
 %% Training Configuration
+numEps = 10;
 trainOpts = rlTrainingOptions(...
-    'MaxEpisodes', 10,...                       % Run for set number of episodes
+    'MaxEpisodes', numEps,...                       % Run for set number of episodes
     'MaxStepsPerEpisode', 1,...
     'ScoreAveragingWindowLength', 100,...
     'Verbose', true,...
-    'Plots', 'training-progress',...
+    'Plots', 'none',...
     'StopTrainingCriteria', 'None');
 disp("Training Options Set")
 
 %% Create Data Logger for episode information
+
+global episodeInfo 
+episodeInfo = zeros(numEps,5); % observation, reward, k1, k1/k2, k2
+
 logger = rlDataLogger();
 
 % Configure Episode Finished Callback
@@ -181,11 +186,15 @@ function [initialObs, loggedSignals] = resetFunction(obsSet)
 end
 
 % define logger to record actions/observations during training
-function data = episodeFinishedCallback(info)
-    
-    data.episode = info.EpisodeCount;
-    data.action = info.Experience.Action{1};              % get the episode info
-    data.observation = info.Experience.Observation{1};
-    data.reward = info.Experience.Reward;
+function dataToLog = episodeFinishedCallback(info)
+    global episodeInfo % observation, reward, k1, k1/k2, k2
+    i = info.EpisodeCount;
+    episodeInfo(i,1) = info.Experience.Observation{1}; 
+    episodeInfo(i,2) = info.Experience.Reward; 
+    episodeInfo(i,3) = info.Experience.Action{1}(1); 
+    episodeInfo(i,4) = info.Experience.Action{1}(2); 
+    episodeInfo(i,5) = (info.Experience.Action{1}(1) / info.Experience.Action{1}(2)); 
+    fprintf(" >> Observation  %5.2f | K1 %7.3f K1/K2 %7.3f\n", info.Experience.Observation{1}, info.Experience.Action{1}(1), info.Experience.Action{1}(2)  );
 
+    dataToLog = [];  % Prevents file saving
 end
