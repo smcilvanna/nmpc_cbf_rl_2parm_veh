@@ -27,13 +27,15 @@ nmpcSolver = struct;
 nmpcSolver.settings = setnmpc;
 [nmpcSolver.solver , nmpcSolver.args, nmpcSolver.f] = createMPCDynamicSolver(setnmpc);
 clearvars setnmpc; disp("NMPC Solver Created");
-% Setup Environment For NMPC-CBF 2 parameter training
-obsSet = 0.5:0.5:10;
-obsInfo = rlFiniteSetSpec(obsSet);%([0.5 1.0 5.0 10.0]);
-actInfo = rlNumericSpec([2 1], 'LowerLimit', [1; 0.1], 'UpperLimit', [60; 0.8]); % action(2) will be k1/k2 ratio rather than k2 as previous
+
+%% Setup Environment For NMPC-CBF 2 parameter training
+% obsSet = 0.5:0.5:10;
+obsSet = [0.1 10.0];
+obsInfo = rlNumericSpec([1 1], 'LowerLimit', -inf , 'UpperLimit', inf );
+actInfo = rlNumericSpec([2 1], 'LowerLimit', [-inf ; -inf] , 'UpperLimit', [inf ; inf] ); % action(2) is k1/k2 ratio rather than k2 as previous
 env = rlFunctionEnv(obsInfo, actInfo, @(action, loggedSignals) stepFunction(action, loggedSignals, nmpcSolver), @() resetFunction(obsSet));
 disp("RL Environment Created");
-% TD3 Network Setup
+%% TD3 Network Setup
 
 % Actor Network
 actorLayers = [
@@ -50,6 +52,8 @@ assert(isequal(obsInfo.Dimension, [1 1]), 'Observation spec mismatch')
 assert(isequal(actInfo.Dimension, [2 1]), 'Action spec mismatch')
 actor = rlContinuousDeterministicActor(layerGraph(actorLayers), obsInfo, actInfo);
 disp("RL Actor Created");
+
+
 % TD3 Critic Networks Setup
 % Critic Network Construction
 
@@ -104,19 +108,21 @@ params = getLearnableParameters(critic1);
 perturbedParams = cellfun(@(x) x + 0.01*randn(size(x)), params, 'UniformOutput', false);
 critic2 = setLearnableParameters(critic2, perturbedParams);
 disp("RL Critics Created");
+
+
 % TD3 Agent Configuration
 agentOpts = rlTD3AgentOptions(...
     'SampleTime', 1,...
     'ExperienceBufferLength', 10000,...
-    'MiniBatchSize', 32,...
+    'MiniBatchSize', 64,...
     'DiscountFactor', 0.0001,...
     'TargetSmoothFactor', 0.05,...  
     'TargetUpdateFrequency', 2,...
     'ActorOptimizerOptions', rlOptimizerOptions('LearnRate',5e-4), ...
     'CriticOptimizerOptions',rlOptimizerOptions('LearnRate',5e-4), ...
     'PolicyUpdateFrequency', 2);
-agentOpts.ExplorationModel.StandardDeviation = [0.2 ; 0.2];
-agentOpts.ExplorationModel.StandardDeviationDecayRate = 0;
+agentOpts.ExplorationModel.StandardDeviation = [0.4 ; 0.4];
+agentOpts.ExplorationModel.StandardDeviationDecayRate = 0.01;
 
 % Create TD3 Agent
 agent = rlTD3Agent(actor, [critic1 critic2], agentOpts);
@@ -150,20 +156,34 @@ trainID = "2"; verID = "v2"; fname = "train_td3" + verID + "_" + trainID + ".mat
 trainingStats = train(agent, env, trainOpts, 'Logger', logger);
 save(fname);
 
+
+%%
+
+
+%%
+[obs, logs] = resetFunction([0.1, 10.0]);
+disp(obs); % Should be 0.1 or 10.0
+disp(logs); % Should not error
+
+action = [0.5; -0.3]; % 2x1 vector
+[nextObs, reward, done, logs] = stepFunction(action, struct(), nmpcSolver);
+
+
 %% LOCAL FUNCTIONS
 
 % Step function (one step per episode)
-function [nextObs, reward, isDone, loggedSignals] = stepFunction(action, loggedSignals, nmpcSolver)
+function [nextObs, reward, isDone, LoggedSignals] = stepFunction(action, loggedSignals, nmpcSolver)
     settings = struct;
     % Need this to handle the initial stepFunction validation before the reset function is run
     if ~isfield(loggedSignals, 'obs') || isempty(loggedSignals.obs)
         settings.obs_rad = 1.0;
     else
-        settings.obs_rad = loggedSignals.obs;
+        settings.obs_rad = denormaliseObservation(loggedSignals.obs);
     end
     % create settings struct for simulation scenario
-    k1 = action(1);
+    k1 = denormaliseAction(action(1));
     k2 = action(1) / action(2);
+    k2 = denormaliseAction(k2);
     settings.cbfParms = [ k1 ; k2 ];
     settings.veh_rad = nmpcSolver.settings.veh_rad;
     settings.N = nmpcSolver.settings.N;
@@ -176,12 +196,16 @@ function [nextObs, reward, isDone, loggedSignals] = stepFunction(action, loggedS
     reward = rewardout.reward;
     nextObs = settings.obs_rad;     % In this case, obs doesn't change as will be modified by reset function
     isDone = true;                  % One step per episode so done after each step
+    LoggedSignals = loggedSignals;
 end
 
 % Define the reset function
 function [initialObs, loggedSignals] = resetFunction(obsSet)
     % obsSet = [0.5 1.0 5.0 10.0];
-    initialObs = obsSet(randi(length(obsSet)));
+    % initialObs = obsSet(randi(length(obsSet)));           % discrete observations
+    minObs = obsSet(1) ; maxObs = obsSet(2);
+    realObs = round(minObs + (maxObs - minObs) * rand(), 1);     % continious observations
+    initialObs = normaliseObservation(realObs);                 % normalise the observation
     loggedSignals.obs = initialObs;
 end
 
@@ -197,4 +221,27 @@ function dataToLog = episodeFinishedCallback(info)
     fprintf(" >> Observation  %5.2f | K1 %7.3f K1/K2 %7.3f\n", info.Experience.Observation{1}, info.Experience.Action{1}(1), info.Experience.Action{1}(2)  );
 
     dataToLog = [];  % Prevents file saving
+end
+
+
+function nobs = normaliseObservation(obs)
+    obsMin = 0.1; obsMax = 10.0;
+    nobs = 2 * (obs - obsMin) ./ (obsMax - obsMin) - 1;
+end
+
+function obs = denormaliseObservation(nobs)
+    origMin = -1; origMax = 1;
+    obsMin = 0.1; obsMax = 10.0;
+    obs = ((nobs - origMin) / (origMax - origMin)) * (obsMax - obsMin) + obsMin;
+end
+
+function action = denormaliseAction(naction)
+    origMin = -1; origMax = 1;
+    k1Min = 1.0; k1Max = 60;
+     rMin = 0.1;  rMax = 0.8;
+
+    k1 = ((naction(1) - origMin) / (origMax - origMin)) * (k1Max - k1Min) + k1Min;
+    kr = ((naction(2) - origMin) / (origMax - origMin)) * ( rMax -  rMin) +  rMin;
+    action = [k1 ; kr];
+
 end
