@@ -151,7 +151,24 @@ end
 
 clearvars i testr
 
-%%
+%% Training Information (episodeInfo)
+% episodeInfo(columns) = observation, reward, k1, k1/k2, k2
+close all;
+info.obs = denormaliseObservation(episodeInfo(:,1));
+info.cbf = zeros(length(episodeInfo),2);
+
+for i = 1:length(episodeInfo)
+    naction = episodeInfo(i,3:4);
+    info.cbf(i,:) = round(denormaliseAction(naction),2);
+end
+
+fig = figure; ax =axes(fig);
+scatter3(ax, info.obs,info.cbf(:,1),info.cbf(:,2),2,"filled");
+xlabel(ax,'Obstacle Radius (m)');
+ylabel(ax,'k1');
+zlabel(ax,'k1/k2');
+
+clearvars action naction i 
 
 %%
 
