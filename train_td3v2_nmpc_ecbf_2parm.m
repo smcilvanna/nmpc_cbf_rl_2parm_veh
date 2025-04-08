@@ -223,26 +223,3 @@ function dataToLog = episodeFinishedCallback(info)
 
     dataToLog = [];  % Prevents file saving
 end
-
-
-function nobs = normaliseObservation(obs)
-    obsMin = 0.1; obsMax = 10.0;
-    nobs = 2 * (obs - obsMin) ./ (obsMax - obsMin) - 1;
-end
-
-function obs = denormaliseObservation(nobs)
-    origMin = -1; origMax = 1;
-    obsMin = 0.1; obsMax = 10.0;
-    obs = ((nobs - origMin) / (origMax - origMin)) * (obsMax - obsMin) + obsMin;
-end
-
-function action = denormaliseAction(naction)
-    origMin = -1; origMax = 1;
-    k1Min = 1.0; k1Max = 60;
-     rMin = 0.1;  rMax = 0.8;
-
-    k1 = ((naction(1) - origMin) / (origMax - origMin)) * (k1Max - k1Min) + k1Min;
-    kr = ((naction(2) - origMin) / (origMax - origMin)) * ( rMax -  rMin) +  rMin;
-    action = [k1 ; kr];
-
-end
