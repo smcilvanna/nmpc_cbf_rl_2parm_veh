@@ -17,11 +17,45 @@ clc; disp("Done");
 clearvars -except agent test*
 
 %%
+
+x = [ 1 1];
+y = denormaliseAction(x);
+
+
+%% Validate TD3 agent Outputs VS Obstacle observation inputs [ normalisation ]
+clc;
+test.ObservationsReal = (0.5:0.5:10); % Edge cases
+test.Observations = normaliseObservation(test.ObservationsReal);
+test.results = zeros(length(test.Observations), 4);
+
+for i = 1:length(test.Observations)
+    test.obs = test.Observations(i);
+    test.actionN = getAction(agent, {test.obs});
+    test.action = denormaliseAction(test.actionN{1});
+    % Store results
+    test.results(i,1) = test.obs;
+    test.results(i,2) = test.action(1); % k1
+    test.results(i,3) = test.action(2); % k1/k2 ratio
+    test.results(i,4) = test.results(i,2)/test.results(i,3);
+    
+    % Display
+    fprintf('Obstacle Radius: %5.1f  →  k1=% .2f,  k2= %.2f,     k2_ratio= %.2f\n',...
+            test.obs, test.results(i,2), test.results(i,4), test.results(i,3));
+end
+
+
+
+
+
+
+clearvars i testr
+%%
+%% Single Sample [ without manual normalisation ]
 test.obs = 4.0;
 test.actionOut = getAction(agent,{test.obs});
 disp(test.actionOut{1});
 
-%% Validate TD3 agent Outputs VS Obstacle observation inputs
+%% Validate TD3 agent Outputs VS Obstacle observation inputs [ without manual normalisation ]
 clc;
 test.Observations = (0.5:0.5:10); % Edge cases
 test.results = cell(length(test.Observations), 4);
