@@ -39,17 +39,3 @@ function action = denormaliseAction(naction)
     % Combine results into a single output vector
     action = [k1 ; kr];
 end
-
-
-
-
-% function action = denormaliseAction(naction)
-%     origMin = -1; origMax = 1;
-%     k1Min = 1.0; k1Max = 60;
-%      rMin = 0.1;  rMax = 0.8;
-% 
-%     k1 = ((naction(1) - origMin) / (origMax - origMin)) * (k1Max - k1Min) + k1Min;
-%     kr = ((naction(2) - origMin) / (origMax - origMin)) * ( rMax -  rMin) +  rMin;
-%     action = [k1 ; kr];
-% 
-% end
