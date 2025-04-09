@@ -14,7 +14,7 @@ addpath("C:\Users\14244039\AppData\Roaming\MathWorks\MATLAB Add-Ons\Collections\
 clc; disp("Done");
 
 %% Cleanup Workspace
-clearvars -except agent test*
+clearvars -except agent test* episodeInfo*
 
 %% Load agent from mat file to validate
 
@@ -154,21 +154,46 @@ clearvars i testr
 %% Training Information (episodeInfo)
 % episodeInfo(columns) = observation, reward, k1, k1/k2, k2
 close all;
-info.obs = denormaliseObservation(episodeInfo(:,1));
-info.cbf = zeros(length(episodeInfo),2);
 
-for i = 1:length(episodeInfo)
-    naction = episodeInfo(i,3:4);
+matchingVars = who('episodeInfo*'); % Find all episode info
+allEpisodes = [];
+for i = 1:length(matchingVars)  % Loop through each matching variable name
+    allEpisodes = [allEpisodes; eval(matchingVars{i})]; % eval() pulls out the individual vars, combine into overall var
+end
+fprintf("Combined %d episode training sets into 1.\n",i);
+clearvars i matchingVars
+
+
+info.obs = denormaliseObservation(allEpisodes(:,1));
+info.cbf = zeros(length(allEpisodes),2);
+
+for i = 1:length(allEpisodes)
+    naction = allEpisodes(i,3:4);
     info.cbf(i,:) = round(denormaliseAction(naction),2);
 end
 
-fig = figure; ax =axes(fig);
-scatter3(ax, info.obs,info.cbf(:,1),info.cbf(:,2),2,"filled");
-xlabel(ax,'Obstacle Radius (m)');
-ylabel(ax,'k1');
-zlabel(ax,'k1/k2');
+fig = figure('Position', [200 100 1200*0.9 800*0.8]); 
+t = tiledlayout(fig, 2, 3, TileSpacing="tight");
+ax1 = nexttile([2,2]);
+scatter3(ax1, info.obs, info.cbf(:,1), info.cbf(:,2), 2, "filled");
+xlabel(ax1,'Obstacle Radius (m)');
+ylabel(ax1,'k1');
+zlabel(ax1,'k1/k2');
+align_axislabel([], gca);
 
-clearvars action naction i 
+ax2 = nexttile(3);
+scatter(ax2, info.obs, info.cbf(:,1),2,'r',"filled");
+xlabel(ax2,'Obstacle Radius (m)');
+ylabel(ax2,'k1');
+
+ax3 = nexttile(6);
+scatter(ax3, info.obs, info.cbf(:,2),2,'g',"filled");
+xlabel(ax3,'Obstacle Radius (m)');
+ylabel(ax3,'k1/k2');
+
+title(t, "Training Parameter Coverage")
+
+clearvars action naction i ax* allEpisodes
 
 %%
 

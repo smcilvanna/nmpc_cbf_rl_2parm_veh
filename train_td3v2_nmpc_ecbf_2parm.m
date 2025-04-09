@@ -152,7 +152,7 @@ disp("Episode Data Logger Enabled");
 
 %% Train the agent
 disp(">>> TRAINING START <<<")
-trainID = "3"; verID = "v2"; fname = "train_td3" + verID + "_" + trainID + ".mat";
+trainID = "3-2"; verID = "v2"; fname = "train_td3" + verID + "_" + trainID + ".mat";
 trainingStats = train(agent, env, trainOpts, 'Logger', logger);
 save(fname);
 
