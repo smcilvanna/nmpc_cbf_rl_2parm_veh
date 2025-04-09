@@ -1,66 +1,81 @@
-cd("C:\Users\14244039\OneDrive - Queen's University Belfast\Documents\MATLAB\cbfrl\cbfrl_2param\cbf_2parm_veh")
-return
-%%
-cd("/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh");
-return
-
-
-%% >>>>>>>>>>>>>>>>>>>>>>> BATCH RUN V4 Dynamic Model With 2 CBF param and dynamic N (MPC horizon) <<<<<<<<<<<<<<<<<<<<<<<<<<
-
-%{
-____    ____  _  _    
-\   \  /   / | || |   
- \   \/   /  | || |_  
-  \      /   |__   _| 
-   \    /       | |   
-    \__/        |_|   
-%}
-
-addpath("./functions/");
-addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION #### 
+% %% [RUN BY SECION ONLY]
+% return; 
+% null = 1;
+%% Linux
+cd /home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh
+addpath("functions/");
+addpath('/home/sm/matlab/com/casadi-3.6.7/');
+clc; disp("Done")
+%% Windows (Win 11 Laptop)
+cd("C:\Users\14244039\OneDrive - Queen's University Belfast\win_11_qub\Documents\MATLAB\nmpc_cbf_rl_2parm_veh");
+addpath("functions\");
+addpath("C:\Users\14244039\AppData\Roaming\MathWorks\MATLAB Add-Ons\Collections\casadi-3.7.0-windows64-matlab2018b");
+clc; disp("Done");
+%% Create Solvers For variable N runs
 import casadi.*
-
-Nvals = [10 25 50 75 100];
+Nvals = 10:10:110;
 settings.DT = 0.1; 
 settings.velMax = 2;
 settings.accMax = 5;
 settings.cbfParms = [1.0, 1.0];
 settings.obs_rad = 1;
 settings.veh_rad = 0.55;
+solverStack = createSolvers(Nvals,settings);
+fprintf("%d NMPC solvers created\n",numel(Nvals));
+clearvars settings Nvals
+%% Setup parameters for V4 sweep
+load("train_td3v2-2_results.mat","test");       % file with test output from agent validation (best parameters)
+bestParms = array2table(test.results, "VariableNames",["obs","k1","kr","k2"]);   % obstacle, rl-k1, rl-kr, rl-k2
+testParms = [bestParms(2:4:end,:)];
+testParms.k1 = round(testParms.k1,2);
+testParms.k2 = round(testParms.k2,2);
+testParms.kr = round(testParms.kr,2);
 
-[solverStack, argsStack, f] = createSolvers(Nvals,settings);
+testList = [];
 
-% Batch run with different N-solvers
-todaydate = datestr(datetime('today'), 'yymmdd');
-runname = "sweep_ecbf_2parm_A3_N"
-outname = sprintf("./%s_%s.mat",todaydate,runname);
-% fprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname);
-% input("");
-existList = false;
-if exist("testListOld","var")
-    fprintf("\n\nThere is an existing test list, will ignore existing tests...\n\nENTER to begin simulations...\n\n");
-    input("");
-    existList = true;
+k1_steps = 10; k1_step_ratio = 0.025; 
+kr_steps = 10; kr_step_ratio = 0.025;
+k1_mul = -(k1_steps/2):1:(k1_steps/2);
+k1_mul = k1_mul*k1_step_ratio;
+kr_mul = -(kr_steps/2):1:(kr_steps/2);
+kr_mul = kr_mul*kr_step_ratio;
+
+for in = 1:length(solverStack)
+    for io = 1:height(testParms) % iterate over each obstacle
+        for i1 = 1:numel(k1_mul)
+            for ir = 1:numel(kr_mul)
+                thisTest = testParms(io,:);
+                thisTest.Nidx = in;
+                thisTest.k1 = thisTest.k1*k1_mul(i1) + thisTest.k1;
+                thisTest.kr = thisTest.kr*kr_mul(ir) + thisTest.kr;
+                thisTest.k2 = thisTest.k1 / thisTest.kr;
+                testList = [testList ; thisTest];
+            end
+        end
+    end
 end
+fprintf("Test List created. Number of simulations to run : %d\n ", height(testList) );
+clearvars test bestParms ans i1 in io ir k1_mul kr_mul k1_step* kr_step* thisTest testParms;
 
-% Create test list for simulations
-%   parm2_B2n (17th March) vmax = 2 accmax = 5 N = solverStack
-cbf_k1      = [0.01 0.1:0.2:0.9 0.99];
-cbf_k2      = cbf_k1; 
-obs         = [1.0 3.0 5.0 7.0 10.0 ];
-Nidx        = 1:numel(Nvals);
-testList    = combinations(cbf_k1,cbf_k2,Nidx,obs);
-clearvars cbf_k cbf_alpha obs Nidx
-input(sprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin %d simulations...\n\n",outname,size(testList,1)));
-testList = sortrows(testList,"obs");
+%% >>>>>>>>>>>>>>>>>>>>>>> BATCH RUN V4 Dynamic Model With 2 CBF param and dynamic N (MPC horizon) <<<<<<<<<<<<<<<<<<<<<<<<<<
+
+todaydate = string(datetime('today'), 'yyMMdd');
+runname = "sweep_ecbf_N2v1";
+outname = sprintf("./%s_%s.mat",todaydate,runname);
+% input(sprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname));
+
 alldata = [];
 
 for i = 1:size(testList,1)
-    solverSel = testList.Nidx(i);
-    settings.cbfParms = [ testList.cbf_k1(i) ; testList.cbf_k2(i)];
+    nmpc = solverStack{testList.Nidx(i)};
+    solver = nmpc.solver;
+    args = nmpc.args;
+    f = nmpc.f;
+    settings = nmpc.settings;
+    settings.cbfParms = [ testList.k1(i) ; testList.k2(i) ];
     settings.obs_rad = testList.obs(i);
-    settings.N = Nvals(solverSel);
-    simdata = simulationLoopDyn(solverStack{solverSel},argsStack{solverSel},f, settings);
+    % <<<< RUN SIMULATION >>>
+    simdata = simulationLoopDyn(solver, args, f, settings);
     alldata = [alldata ; simdata];
     if mod(i,100)==0
         save(outname,"alldata", "testList");
@@ -493,28 +508,4 @@ function plotCurrentState(vehicle, obstacle,time)
     input("Press ENTER to continue...")
     % pause(1)
     close all;
-end
-
-
-
-%%
-
-function [solverStack, argsStack, f] = createSolvers(Nvals,settings)
-    import casadi.*
-    if size(Nvals,1) ~= 1
-        disp("Error Nvals must be row vector");
-        return
-    end
-
-    solverStack = {};
-    argsStack = [];
-
-    for i = Nvals
-        settings.N = i;
-        [solver, args, f] = createMPCDynamicSolver(settings);
-
-        solverStack = [solverStack ; {solver}];
-        argsStack   = [argsStack ; {args}];
-    
-    end
 end
