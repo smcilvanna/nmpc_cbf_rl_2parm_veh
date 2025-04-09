@@ -14,18 +14,25 @@ addpath("C:\Users\14244039\AppData\Roaming\MathWorks\MATLAB Add-Ons\Collections\
 clc; disp("Done");
 
 %% Cleanup Workspace
-clearvars -except agent test* episodeInfo*
+clearvars -except agent test* episodeInfo* numEpisodes
 
 %% Load agent from mat file to validate
-
+clear all
 [fileName, filePath] = uigetfile('*.mat', 'Select a MAT-file', './temp_data');
 if isequal(fileName, 0)
     disp('File selection canceled.');   % Check if the user selected a file or canceled the operation
 else
-    load( fullfile(filePath, fileName) , 'agent', 'episodeInfo','verID','trainID'); % construct full path and load into workspace
+    load( fullfile(filePath, fileName) , 'agent', 'episodeInfo*','verID','trainID'); % construct full path and load into workspace
     disp(['Loaded MAT-file: ', fullfile(filePath, fileName)]);
 end
-clearvars fileName filePath
+
+matchingVars = who('episodeInfo*'); % Find all episode info
+numEpisodes = 0;
+for i = 1:length(matchingVars) 
+    numEpisodes = numEpisodes + length(eval(matchingVars{i})); 
+end
+fprintf("Total Episodes = %d.\n",numEpisodes);
+clearvars fileName filePath i matchingVars
 
 %% Validate TD3 agent Outputs VS Obstacle observation inputs [ normalisation ]
 clc;
@@ -119,7 +126,7 @@ tl.Padding = 'compact';
 title(tl,"2 Parameter CBF-RL (TD3)",'FontWeight', 'bold', 'FontSize', 14)
 % subtitle(tl,sprintf("Weights [%.2f %.2f %.2f]",weights(1),weights(2),weights(3) ) , 'FontSize', 10);
 if exist("verID","var") && exist ("trainID","var") && exist("episodeInfo","var")
-    subtitle(tl,sprintf("TD3%s-%s %d Episodes",verID,trainID,size(episodeInfo,1)));
+    subtitle(tl,sprintf("TD3%s-%s %d Episodes",verID,trainID,numEpisodes));
 end
 clearvars ax* fig* t1 t2 t3 tl vis x yk* 
 
@@ -191,8 +198,10 @@ scatter(ax3, info.obs, info.cbf(:,2),2,'g',"filled");
 xlabel(ax3,'Obstacle Radius (m)');
 ylabel(ax3,'k1/k2');
 
-title(t, "Training Parameter Coverage")
-
+title(t, sprintf("Training Parameter Coverage"))
+if exist("verID","var") && exist ("trainID","var") && exist("episodeInfo","var")
+    subtitle(t,sprintf("TD3%s-%s %d Episodes",verID,trainID,numEpisodes));
+end
 clearvars action naction i ax* allEpisodes
 
 %%
