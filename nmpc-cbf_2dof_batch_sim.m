@@ -62,7 +62,7 @@ clearvars test bestParms ans i1 in io ir k1_mul kr_mul k1_step* kr_step* thisTes
 todaydate = string(datetime('today'), 'yyMMdd');
 runname = "sweep_ecbf_N2v1";
 outname = sprintf("./%s_%s.mat",todaydate,runname);
-% input(sprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname));
+input(sprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname));
 
 alldata = [];
 
@@ -74,6 +74,10 @@ for i = 1:size(testList,1)
     settings = nmpc.settings;
     settings.cbfParms = [ testList.k1(i) ; testList.k2(i) ];
     settings.obs_rad = testList.obs(i);
+    % settings.N = nmpc.settings.N;
+    % settings.DT = nmpcSolver.settings.DT;
+    settings.endSepTol = 0.1;
+    settings.maxSimTime = 100;
     % <<<< RUN SIMULATION >>>
     simdata = simulationLoopDyn(solver, args, f, settings);
     alldata = [alldata ; simdata];
