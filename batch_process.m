@@ -353,11 +353,27 @@ clearvars numDivisions weights wp ws wv rfWeights i
 close all
 obsSet      = unique(results.orad1);
 
+load("train_td3v2-2_results.mat","test");       % file with test output from agent validation (best parameters)
+bestParms = array2table(test.results, "VariableNames",["obs","k1","kr","k2"]);   % obstacle, rl-k1, rl-kr, rl-k2
+testParms = [bestParms(2:4:end,:)];
+testParms.k1 = round(testParms.k1,2);
+testParms.k2 = round(testParms.k2,2);
+testParms.kr = round(testParms.kr,2);
+
 oResults = []; % stack results table based on obstacle size
 for i = 1:numel(obsSet)
     fResults = results( ismember(results.orad1,obsSet(i)),:);
     oResults = [oResults ; {fResults}];
 end
+
+% rlResults = [];
+% for i = 1:length(oResults)
+%     for ii = 1:height(oResults{i})
+%         if ismembertol(oResults{i}.k1(ii), testParms.k1 , 0.001 ) && ismembertol(oResults{i}.k2(ii),testParms.k2, 0.001)
+%             rlResults = [ rlResults ; oResults{i}(ii,:)]
+%         end
+%     end
+% end
 
 bResults = [];
 for i = 1:length(oResults)
