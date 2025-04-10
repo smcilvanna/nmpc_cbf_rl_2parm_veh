@@ -348,9 +348,38 @@ end
 
 clearvars numDivisions weights wp ws wv rfWeights i 
 
-%%
+%% Check N performance
+
+close all
+obsSet      = unique(results.orad1);
+
+oResults = []; % stack results table based on obstacle size
+for i = 1:numel(obsSet)
+    fResults = results( ismember(results.orad1,obsSet(i)),:);
+    oResults = [oResults ; {fResults}];
+end
+
+bResults = [];
+for i = 1:length(oResults)
+    best = sortrows(oResults{i},"reward","descend");
+    bResults = [ bResults ; best(1,:) ];
+end
+
+x = bResults.orad1;
+y = bResults.N;
+y2 = bResults.k1;
+y3 = bResults.k2;
+y4 = y2 ./ y3;
+
+t = tiledlayout(2,2);
+nexttile; scatter(x,y);  title(" Best N ");
+nexttile; scatter(x,y2); title(" Best k1 ");
+nexttile; scatter(x,y3); title(" Best k2 ");
+nexttile; scatter(x,y4); title(" Best k1/k2");
 
 
+
+clearvars i fResults best
 
 
 %% LOCAL FUNCTIONS
