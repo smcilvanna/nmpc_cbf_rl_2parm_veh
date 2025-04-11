@@ -13,7 +13,7 @@ addpath("C:\Users\14244039\AppData\Roaming\MathWorks\MATLAB Add-Ons\Collections\
 clc; disp("Done");
 %% Create Solvers For variable N runs
 import casadi.*
-Nvals = 10:10:110;
+Nvals = 10:5:110;
 settings.DT = 0.1; 
 settings.velMax = 2;
 settings.accMax = 5;
@@ -22,8 +22,8 @@ settings.obs_rad = 1;
 settings.veh_rad = 0.55;
 solverStack = createSolvers(Nvals,settings);
 fprintf("%d NMPC solvers created\n",numel(Nvals));
-clearvars settings Nvals
-%% Setup parameters for V4 sweep
+clearvars settings
+%% Setup parameters for V4 sweep [with variance]
 load("train_td3v2-2_results.mat","test");       % file with test output from agent validation (best parameters)
 bestParms = array2table(test.results, "VariableNames",["obs","k1","kr","k2"]);   % obstacle, rl-k1, rl-kr, rl-k2
 testParms = [bestParms(2:4:end,:)];
@@ -57,10 +57,24 @@ end
 fprintf("Test List created. Number of simulations to run : %d\n ", height(testList) );
 clearvars test bestParms ans i1 in io ir k1_mul kr_mul k1_step* kr_step* thisTest testParms;
 
+%% Setup parameters for V4 sweep [rl parameters only]
+load("train_td3v2-2_results.mat","test");       % file with test output from agent validation (best parameters)
+bestParms = array2table(test.results, "VariableNames",["obs","k1","kr","k2"]);   % obstacle, rl-k1, rl-kr, rl-k2
+bestParms.kr = [];
+testList = [];
+for nidx = 1:height(solverStack)
+    bestParms.Nidx(:) = nidx;
+    testList = [ testList ; bestParms ];
+end
+
+for i = 1:2
+    testList = [testList ; testList];
+end
+clearvars i nidx Nvals test
 %% >>>>>>>>>>>>>>>>>>>>>>> BATCH RUN V4 Dynamic Model With 2 CBF param and dynamic N (MPC horizon) <<<<<<<<<<<<<<<<<<<<<<<<<<
 
 todaydate = string(datetime('today'), 'yyMMdd');
-runname = "sweep_ecbf_N2v1";
+runname = "sweep_ecbf_N2v2";
 outname = sprintf("./%s_%s.mat",todaydate,runname);
 input(sprintf("\n\nDid you change the output mat file name? \nSet as: %s\n\nENTER to begin simulations...\n\n",outname));
 
@@ -77,7 +91,7 @@ for i = 1:size(testList,1)
     % settings.N = nmpc.settings.N;
     % settings.DT = nmpcSolver.settings.DT;
     settings.endSepTol = 0.1;
-    settings.maxSimTime = 100;
+    settings.maxSimTime = 150;
     % <<<< RUN SIMULATION >>>
     simdata = simulationLoopDyn(solver, args, f, settings);
     alldata = [alldata ; simdata];
