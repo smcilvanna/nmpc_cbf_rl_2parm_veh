@@ -16,13 +16,22 @@ clearvars -except alldata testList
 %% Add functions path
 addpath("./functions/");
 
+%% Load Simulation Data From .mat file
+close all; clear;
+[fileName, filePath] = uigetfile('*.mat', 'Select a MAT-file', './temp_data');
+if isequal(fileName, 0)
+    disp('File selection canceled.');   % Check if the user selected a file or canceled the operation
+else
+    load( fullfile(filePath, fileName)); % construct full path and load into workspace
+    disp(['Loaded MAT-file: ', fullfile(filePath, fileName)]);
+end; clearvars fileName filePath
 
 %% Read in all simulated data and get reward from each run
 addpath("./functions/");
 rfWeights = [1 1 1]; % [path end-sep ave-vel]
 [results, ~] = processResultsTable(alldata, rfWeights);
 fprintf("\n\nResults Table Generated.\n\n\n");
-figure(plotBestParams(results,rfWeights))
+% figure(plotBestParams(results,rfWeights))
 clearvars rfWeights
 
 %% Check test parameter ranges
@@ -366,15 +375,6 @@ for i = 1:numel(obsSet)
     oResults = [oResults ; {fResults}];
 end
 
-% rlResults = [];
-% for i = 1:length(oResults)
-%     for ii = 1:height(oResults{i})
-%         if ismembertol(oResults{i}.k1(ii), testParms.k1 , 0.001 ) && ismembertol(oResults{i}.k2(ii),testParms.k2, 0.001)
-%             rlResults = [ rlResults ; oResults{i}(ii,:)]
-%         end
-%     end
-% end
-
 bResults = [];
 for i = 1:length(oResults)
     best = sortrows(oResults{i},"reward","descend");
@@ -392,8 +392,6 @@ nexttile; scatter(x,y);  title(" Best N ");
 nexttile; scatter(x,y2); title(" Best k1 ");
 nexttile; scatter(x,y3); title(" Best k2 ");
 nexttile; scatter(x,y4); title(" Best k1/k2");
-
-
 
 clearvars i fResults best
 
@@ -418,8 +416,8 @@ function [results, resultsObs] = processResultsTable(alldata, weights)
         maxVel = rewardout.maxVel;
         stime = rewardout.simtime;
 
-        results = [results ; array2table(   [cbf',      obs1,   obs2,       reward,     dist,       opdst,        fsep,       msep      aveVel,     maxVel,     stime,     i, N], ...
-                            "VariableNames",["k1","k2", "orad1","orad2",    "reward",   "pathDist", "optimalDist","finishSep","minSep", "aveVel",   "maxVel",   "simTime", "allIdx", "N"])];
+        results = [results ; array2table(   [cbf',      obs1,   obs2,       reward,     dist,       opdst,        fsep,       msep      aveVel,     maxVel,     stime,     i,        N,     round(rewardout.realStepTime_ms,2)], ...
+                            "VariableNames",["k1","k2", "orad1","orad2",    "reward",   "pathDist", "optimalDist","finishSep","minSep", "aveVel",   "maxVel",   "simTime", "allIdx", "N",   "realStepTime"])];
         if mod(i,1000)==0
             fprintf("\b\b\b\b\b%5d",i)
         end
