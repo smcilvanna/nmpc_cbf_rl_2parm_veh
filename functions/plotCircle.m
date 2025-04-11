@@ -28,6 +28,6 @@ function plotCircle(center, radius, lineStyle, color)
               'EdgeColor', color, 'LineStyle', lineStyle);
     
     % Ensure the aspect ratio is equal to make the circle look like a circle
-    axis equal;
-    grid on; % Optional: Add some grid lines for better visualization
+    % axis equal;
+    % grid on; % Optional: Add some grid lines for better visualization
 end
