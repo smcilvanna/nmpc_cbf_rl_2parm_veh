@@ -1,6 +1,7 @@
 function rewardout = getReward(simdata,weights)
 % From the simdata, calculate the reward value passed to RL
-        
+    nRewardEnable = true;   % for weighting rewards for multi N (based on simulation real step time) #might need to make this an input arg
+
     if exist("weights","var")
         if numel(weights) ~= 3
             fprintf("[ERROR] Need 3 element weight vector for reward function.\n[Path-Efficiency  End-Seperation  Average-Velocity]");
@@ -42,6 +43,7 @@ function rewardout = getReward(simdata,weights)
         maxVel = -1;
         aveVel = -1;
         simtime = -1;
+        realStepTime = -1;
         rp = 0; rs = 0; rv = 0;
         wp = 0; ws = 0; wv = 0;
     else
@@ -71,7 +73,8 @@ function rewardout = getReward(simdata,weights)
         pathDist = pathDist + endSep; % need to add on any remaning distance to the target also
 
         % Calculate average velocity
-        simtime = size(simdata.usafe,1) * simdata.dt; 
+        ctrlSteps = size(simdata.usafe,1);
+        simtime =  ctrlSteps * simdata.dt; 
         aveVel = pathDist/simtime;
 
         % Calculate Reward
@@ -103,8 +106,31 @@ function rewardout = getReward(simdata,weights)
         
                  %Path-Efficiency
         reward = rp*wp              + rs*ws + rv*wv;                 % total reward
-        
+       
+        % Calculate the real step time for controller
+        loopTime = simdata.looptime;
+        realStepTime = loopTime / ctrlSteps;
+
+        % Addition reward weight for 
+        if nRewardEnable && (reward > 0)
+            % Calculate nreward multiplier rn
+            tmin = 10/1000;
+            tmax = 100/1000;
+            
+            if realStepTime <= tmin
+                rn = 1;
+            else
+                tau = (tmax - tmin) / log(1 / 0.9); 
+                rn = exp(-(realStepTime - tmin) / tau); % Exponential decay 
+            end
+            % reward = reward/2 + rn/2;   
+            reward = reward * rn;
+        end
+
+
+
     end
+
     rewardout.reward = reward;
     rewardout.rp = rp;
     rewardout.rs = rs;
@@ -118,6 +144,7 @@ function rewardout = getReward(simdata,weights)
     rewardout.maxVel = maxVel;
     rewardout.aveVel = aveVel;
     rewardout.simtime = simtime;
+    rewardout.realStepTime_ms = realStepTime * 1000;
 end
 
 
