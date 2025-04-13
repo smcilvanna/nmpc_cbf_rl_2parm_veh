@@ -16,9 +16,10 @@ clc; disp("Done");
 %% Setup Random Environment
 close all;
 targetPos = [50 , 50];
-env = generateRandomEnvironment(5, 2.0, 50, targetPos,[5.0;5.0;5.0] );
+env = generateRandomEnvironment(4, 1.0, 20, targetPos,[5.0;5.0;5.0] );
 figure(env.fig);
-%% Run Dynamic Solver Step Loop
+clearvars targetPos
+%% Run Dynamic Solver Step Loop [Dynamic Solver]
 
 % create solver
 import casadi.*
@@ -26,45 +27,75 @@ nmpc.DT = 0.1;
 nmpc.N = 20;
 nmpc.velMax = 2;
 nmpc.accMax = 5;
-nmpc.cbfParms = [22, 86];
+nmpc.cbfParms = [10, 40];
 nmpc.veh_rad = 0.55;
 nmpc.nObs = height(env.obstacles);
 nmpcSolver = createMPCDynamicObsSolver(nmpc);
 clearvars nmpc; disp("Solver Created")
 %%
 
-simSettings.cbfParms = repmat([0.5 , 0.5],5,1);
+simSettings.cbfParms = repmat([22 , 86],5,1);
 simSettings.N = nmpcSolver.settings.N;
 simSettings.DT = nmpcSolver.settings.DT;
 simSettings.veh_rad = nmpcSolver.settings.veh_rad;
-simSettings.loopSteps = 500;
+simSettings.loopSteps = 20;
 simSettings.maxSimTime = 100;
 simSettings.maxEpSteps = simSettings.maxSimTime / simSettings.DT;
 simSettings.endSepTol = 0.1;
-simSettings.vehStart = [0.0, 0.0, deg2rad(45), 0, 0]';
+simSettings.currentState = [0.0, 0.0, deg2rad(45), 0, 0]';
 simSettings.obstacles = env.obstacles;
-simSettings.target = [ targetPos , deg2rad(45) , 0, 0 ]';
+simSettings.target = [ env.targetPos , deg2rad(45) , 0, 0 ]';
 simSettings.currentTime = 0.00;
 simSettings.mpcIter = 0;
 simSettings.ctrlHistory = NaN(simSettings.maxEpSteps,2);
 simSettings.ssHistory = NaN(simSettings.maxEpSteps,1);
 simSettings.stateHistory = NaN(5,simSettings.maxEpSteps);
-simSettings.stateHistory(:,1) = simSettings.vehStart';
+simSettings.stateHistory(:,1) = simSettings.currentState';
 simSettings.simTimeHistory = zeros(simSettings.maxEpSteps,1);
 simSettings.controlHorizon = zeros(simSettings.N,2);
-simSettings.X0 = repmat(simSettings.vehStart,1,simSettings.N+1)';
+simSettings.X0 = repmat(simSettings.currentState,1,simSettings.N+1)';
 
-disp("Simulation Settings Created");
+disp("Simulation INITIAL Settings Created");
 
-%%
-
+%% Single Shot Sim for number of steps [Dynamic Solver]
+disp("Starting Simulation")
 simdata = simulationStepDyn(nmpcSolver, simSettings);
 disp("Simulation Complete")
 
-%% Static Plot for Dynamic Multi Obstacle
+%% Static Plot for Dynamic Multi Obstacle [Dynamic Solver]
 close all; staticPlot= true; viewOnScreen = false;
 fig = visualiseSimulationDyn(simdata,staticPlot,viewOnScreen);
 figure(fig);
+
+
+%%
+clearvars fig staticPlot targetPos viewOnScreen
+%% Loop Step Sim Until Done [Dynamic Solver]
+disp("Starting Simulation")
+isDone = false;
+allSimdata = [];
+while ~isDone
+
+    simdata = simulationStepDyn(nmpcSolver, simSettings);
+
+    allSimdata = [allSimdata ; simdata ];
+
+    % update simSettings for next step
+    simSettings.X0 = simdata.end_X0;
+    simSettings.currentTime = simdata.end_current_time;
+    simSettings.currentState = simdata.end_current_state;
+    simSettings.mpcIter = simdata.mpcIter;
+    simSettings.ctrlHistory = simdata.usafe;
+    simSettings.ssHistory = simdata.sep;
+    simSettings.stateHistory = simdata.states;
+
+    isDone = simdata.endAtTarget || simdata.endEpTimeout || simdata.endHitObs;
+end
+disp("Simulation Complete")
+
+
+
+
 
 %% ########################################################################################################
 %% Run full loop sim for single parameter [Dynamic Solver]

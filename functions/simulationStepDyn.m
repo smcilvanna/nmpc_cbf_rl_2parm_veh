@@ -12,15 +12,15 @@ function simdata = simulationStepDyn(nmpcSolver, settings)
     maxSimTime  = settings.maxSimTime;
     endSepTol   = settings.endSepTol;
 
-    current_state   = settings.vehStart(:);     % each step will pass in the start position
+    current_state   = settings.currentState(:);     % each step will pass in the start position
     obstacles       = settings.obstacles;       % static obstacle configuration in environment
     target_state    = settings.target(:);       % target pose vehicle is navigating to
     current_time    = settings.currentTime;     % time counter for current episode
     mpciter         = settings.mpcIter;         % MPC iteration counter for current episode
-    u_safe_history  = settings.ctrlHistory;     % history of control actions applied to system
-    safe_sep_history = settings.ssHistory;      % history of minimum obstacle seperation
+    ctrlHistory     = settings.ctrlHistory;     % history of control actions applied to system
+    ssHistory       = settings.ssHistory;      % history of minimum obstacle seperation
     state_history   = settings.stateHistory;    % append this array at each step with current state
-    sim_time_history = settings.simTimeHistory; % append this array at each step with sim time
+    simTimeHistory  = settings.simTimeHistory; % append this array at each step with sim time
     
     % control_horizon = zeros(N,2);             % Controls for N horizon steps
     control_horizon = settings.controlHorizon;  % Pass in from last step, or initalise as zeros(N,2)
@@ -58,16 +58,16 @@ function simdata = simulationStepDyn(nmpcSolver, settings)
     
         % solution_history(:,1:5,mpciter+1) = reshape(full(sol.x(1:5*(N+1)))',5,N+1)';  % get solution TRAJECTORY
         % u_mpc_history= [u_mpc_history ; u(1,:)];
-        sim_time_history(mpciter+1) = current_time;
+        simTimeHistory(mpciter+1) = current_time;
         
         % Simulate Time Step                                                              tstep, t_now,           x0,            u, f, obstacle
         [current_time, current_state, control_horizon, ~, sep_safe] = simulateTimeStep(DT,    current_time,    current_state, u, f, obstacles);               % Apply the control and simulate the timestep
         
         state_history( : , mpciter+1) = current_state;
         % u_safe_history = [u_safe_history ; control_horizon(1,:)];
-        u_safe_history(mpciter,:) = control_horizon(1,:);
+        ctrlHistory(mpciter,:) = control_horizon(1,:);
         % safe_sep_history = [safe_sep_history ; sep_safe];
-        safe_sep_history(mpciter,:) = sep_safe;
+        ssHistory(mpciter,:) = sep_safe;
 
         % X0 = solution_history(:,:,mpciter+1);               % current state horizon     % = reshape(full(sol.x(1:6*(N+1)))',6,N+1)';   
         X0 = reshape(full(sol.x(1:5*(N+1)))',5,N+1)';       % initalise state horizon for next step 
@@ -87,14 +87,14 @@ function simdata = simulationStepDyn(nmpcSolver, settings)
     simdata.states = state_history;
     % simdata.ucbf = u_cbf_history;
     % simdata.umpc = u_mpc_history;
-    simdata.usafe = u_safe_history;
+    simdata.usafe = ctrlHistory;
     % simdata.solutions = solution_history;
     simdata.obstacles = obstacles;
     simdata.N = N;
     simdata.vrad = veh_rad;
     simdata.target = target_state';
     simdata.dt = DT;
-    simdata.sep = safe_sep_history;
+    simdata.sep = ssHistory;
     simdata.cbf = cbfParms;
     simdata.looptime = main_loop_time;
     simdata.mpcIter = mpciter;
@@ -104,6 +104,8 @@ function simdata = simulationStepDyn(nmpcSolver, settings)
     simdata.endEpTimeout = episodeTimeout;
     simdata.end_control_horizon = control_horizon;
     simdata.end_X0 = X0;
+    simdata.end_current_state = current_state;
+    simdata.end_current_time = current_time;
 end
 
 
