@@ -206,10 +206,12 @@ function fig = visualiseSimulationDyn(simdata,staticPlot,view,alim)
     
         xyvels = [zeros(2,1), diff(vehicle_positions(1:2,:),1,2)/simdata.dt ];  % calculate linear velocity from positions
         speed = sqrt(sum(xyvels.^2,1));                                         % convert to lin vel for plot
-        linvCtrl = [ 0 ; simdata.usafe(:,1)];                                   % Linear velocity controls
-        angCtrl = [ 0, ; simdata.usafe(:,2)];                                   % Angular velocity controls
+        linvCtrl = [ simdata.usafe(:,1)];                                   % Linear velocity controls
+        angCtrl  = [ simdata.usafe(:,2)];                                   % Angular velocity controls
         t  = 0:simdata.dt:(simdata.dt*(size(vehicle_positions,2)-1));           % timesteps
     
+
+
         dlv = [0 ; diff(linvCtrl)];     % change in linvel
         dav = [0 ; diff(angCtrl)];      % change in steering
     

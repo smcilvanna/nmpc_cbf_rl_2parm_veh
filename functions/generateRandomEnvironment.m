@@ -1,4 +1,4 @@
-function out = generateRandomEnvironment(num_circles, min_spacing, grid_size, radii_set)
+function out = generateRandomEnvironment(num_circles, min_spacing, grid_size, targetPos, radii_set)
 % GENERATERANDOMENVIRONMENT Create 5 circles with position and radius constraints
 % Inputs:
 %   min_spacing - Minimum required distance between circle edges
@@ -7,10 +7,12 @@ function out = generateRandomEnvironment(num_circles, min_spacing, grid_size, ra
 %   circles     - 5x3 matrix [x, y, radius] for each circle
 %   coverage    - Percentage of grid area covered by circles
     out = struct;
-
+    veh_rad = 0.55;
     % grid_size = 50;
     % num_circles = 5;
-    circles = zeros(num_circles, 3);
+    circles = zeros(num_circles+2, 3);
+    circles(1,:) = [0 0 veh_rad];
+    circles(2,:) = [ targetPos(:).' , veh_rad ];
     current_count = 0;
 
     % Handle radius selection mode
@@ -36,7 +38,7 @@ function out = generateRandomEnvironment(num_circles, min_spacing, grid_size, ra
         
         % Validate spacing constraints
         valid = true;
-        for i = 1:current_count
+        for i = 1:current_count+2
             existing = circles(i,:);
             distance = norm([x,y] - existing(1:2));
             min_required = radius + existing(3) + min_spacing;
@@ -50,7 +52,7 @@ function out = generateRandomEnvironment(num_circles, min_spacing, grid_size, ra
         % Add valid circle
         if valid
             current_count = current_count + 1;
-            circles(current_count,:) = [x, y, radius];
+            circles(current_count+2,:) = [x, y, radius];
         end
     end
 
@@ -63,14 +65,14 @@ function out = generateRandomEnvironment(num_circles, min_spacing, grid_size, ra
     fig = figure(Visible="off");
     ax = axes(fig);
     hold on;
-    for i = 1:height(circles)
+    for i = 3:height(circles)
         plotCircle([circles(i,1), circles(i,2)],circles(i,3),'-','r');
     end
     ax.XLim = [0 grid_size];
     ax.YLim = [0 grid_size];
 
     % put output elements into struct
-    out.obstacles = circles;
+    out.obstacles = circles(3:end,:);
     out.coverage = coverage;
     out.fig = fig;
 end

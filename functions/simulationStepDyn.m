@@ -63,7 +63,7 @@ function simdata = simulationStepDyn(nmpcSolver, settings)
         % Simulate Time Step                                                              tstep, t_now,           x0,            u, f, obstacle
         [current_time, current_state, control_horizon, ~, sep_safe] = simulateTimeStep(DT,    current_time,    current_state, u, f, obstacles);               % Apply the control and simulate the timestep
         
-        state_history( : , mpciter+2) = current_state;
+        state_history( : , mpciter+1) = current_state;
         % u_safe_history = [u_safe_history ; control_horizon(1,:)];
         u_safe_history(mpciter,:) = control_horizon(1,:);
         % safe_sep_history = [safe_sep_history ; sep_safe];
@@ -97,7 +97,11 @@ function simdata = simulationStepDyn(nmpcSolver, settings)
     simdata.sep = safe_sep_history;
     simdata.cbf = cbfParms;
     simdata.looptime = main_loop_time;
-
+    simdata.mpcIter = mpciter;
+    simdata.endAtTarget = targetReached;
+    simdata.endHitObs = obstacleCollision;
+    simdata.endStepsDone = stepsComplete;
+    simdata.endEpTimeout = episodeTimeout;
     simdata.end_control_horizon = control_horizon;
     simdata.end_X0 = X0;
 end
@@ -106,21 +110,21 @@ end
 
 
 %% LOCAL FUNCTIONS
-function [t_next, x0, u0, u_qp, sep_safe] = simulateTimeStep(tstep, t_now, x0, u, f, obstacle)
+function [t_next, x0, u0, u_qp, sep_safe] = simulateTimeStep(tstep, t_now, x0, u, f, obstacles)
     st = x0;                                
     u_nom = u(1,:)';
-
-    % if false
-    %     [u_safe, u_qp, sep_safe] = controlBarrierFunction(t_now, obstacle, u_nom, st, qpParms, r_veh, tstep)   ;
-    %     u_apply = u_safe;   % if qp-cbf is enabled, use output from qp
-    % else
     u_apply = u_nom;    % otherwise use output from MPC only
     u_qp = 0;
-    obspos = obstacle(1:2);
-    vehpos = st(1:2);
-    sep_safe = norm(obspos - vehpos) - obstacle(3) - 0.55;  % 0.55 is vehicle radius, change this to variable
-    % end
-
+    minSep = inf;
+    for o = 1:height(obstacles)
+        obspos = obstacles(o,1:2);
+        vehpos = st(1:2);
+        sep_safe = norm(obspos - vehpos') - obstacles(o,3) - 0.55;  % 0.55 is vehicle radius, change this to variable
+        if sep_safe < minSep
+            minSep = sep_safe;
+        end    
+    end
+    sep_safe = minSep;
     st = st + (tstep*f(st,u_apply));
     x0 = full(st);
     t_next = t_now + tstep;

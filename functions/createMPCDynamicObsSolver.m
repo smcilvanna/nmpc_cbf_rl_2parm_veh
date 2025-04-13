@@ -46,21 +46,9 @@ function nmpcSolver = createMPCDynamicObsSolver(settings)
     J = 0;                                  % Empty Objective Function
     g = [];                                 % Empty Constraints Vector
     
-
-    % 
-    % Qx = P(27);
-    % Qy = P(27);
-    % Qyaw = P(28);
-    % Qv = P(29);
-    % Qw = P(30);
-    % Ra = P(31);
-    % Ralpha = P(32);
-    
     Q = diag([100 100 10 10 10]);          % Terminal state position error weight matrix
     R = diag([0.1 0.1]);                % Horizon steps control effort Weighing matrix
-    Qstage = diag([10 10 1]);         % Horizon steps position error weighing matrix
-    % Qv = diag([10 10 1]);                 % Horizon steps velocity error Weighing matrix
-    
+    Qstage = diag([10 10 1]);         % Horizon steps position error weighing matrix  
     
     st = X(:,1); % Initial State    {st:3x1}
     
@@ -102,7 +90,7 @@ function nmpcSolver = createMPCDynamicObsSolver(settings)
     if true
         cbf_margin = 0.00;
         for obs_idx = 1:nObs
-            oo = obs_idx - 1;   % obstacle offset
+            oo = 5*(obs_idx - 1);   % obstacle offset
             %cbf_parameters
             cbf_k1 = P(11+oo);     % CBF parameter (tunable)
             cbf_k2 = P(12+oo);     % CBF parameter (tunable)
