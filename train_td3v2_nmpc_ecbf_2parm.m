@@ -128,7 +128,7 @@ agentOpts.ExplorationModel.StandardDeviationDecayRate = 0.01;
 agent = rlTD3Agent(actor, [critic1 critic2], agentOpts);
 disp("RL TD3 Agent Created");
 %% Training Configuration
-numEps = 5000;
+numEps = 8000;
 trainOpts = rlTrainingOptions(...
     'MaxEpisodes', numEps,...                       % Run for set number of episodes
     'MaxStepsPerEpisode', 1,...
@@ -185,16 +185,20 @@ function [nextObs, reward, isDone, LoggedSignals] = stepFunction(action, loggedS
     dact = denormaliseAction(action);
     k1 = dact(1);
     k2 = k1/dact(2);
-    settings.cbfParms = [ k1 ; k2 ];
-    settings.veh_rad = nmpcSolver.settings.veh_rad;
-    settings.N = nmpcSolver.settings.N;
-    settings.DT = nmpcSolver.settings.DT;
-    settings.endSepTol = 0.1;
-    settings.maxSimTime = 40;
-    % Run simulation with current settings
-    simdata = simulationLoopDyn(nmpcSolver.solver,nmpcSolver.args,nmpcSolver.f, settings);
-    rewardout = getReward(simdata);    % set weights in getReward function
-    reward = rewardout.reward;
+    if k1 > 0 && k2 > 0
+        settings.cbfParms = [ k1 ; k2 ];
+        settings.veh_rad = nmpcSolver.settings.veh_rad;
+        settings.N = nmpcSolver.settings.N;
+        settings.DT = nmpcSolver.settings.DT;
+        settings.endSepTol = 0.1;
+        settings.maxSimTime = 100;
+        % Run simulation with current settings
+        simdata = simulationLoopDyn(nmpcSolver.solver,nmpcSolver.args,nmpcSolver.f, settings);
+        rewardout = getReward(simdata);    % set weights in getReward function
+        reward = rewardout.reward;
+    else
+        reward = -1;                % skip invalid negative parameters
+    end
     nextObs = settings.obs_rad;     % In this case, obs doesn't change as will be modified by reset function
     isDone = true;                  % One step per episode so done after each step
     LoggedSignals = loggedSignals;
