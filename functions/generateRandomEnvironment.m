@@ -75,4 +75,5 @@ function out = generateRandomEnvironment(num_circles, min_spacing, grid_size, ta
     out.obstacles = circles(3:end,:);
     out.coverage = coverage;
     out.fig = fig;
+    out.targetPos = targetPos;
 end
