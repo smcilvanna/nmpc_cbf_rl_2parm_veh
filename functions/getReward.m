@@ -1,6 +1,6 @@
 function rewardout = getReward(simdata,weights)
 % From the simdata, calculate the reward value passed to RL
-    nRewardEnable = true;   % for weighting rewards for multi N (based on simulation real step time) #might need to make this an input arg
+    nRewardEnable = false;   % for weighting rewards for multi N (based on simulation real step time) #might need to make this an input arg
 
     if exist("weights","var")
         if numel(weights) ~= 3
