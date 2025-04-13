@@ -15,7 +15,8 @@ clc; disp("Done");
 
 %% Setup Random Environment
 close all;
-env = generateRandomEnvironment(5,2.0,50,[5.0;5.0;5.0]);
+targetPos = [50 , 50];
+env = generateRandomEnvironment(5, 2.0, 50, targetPos,[5.0;5.0;5.0] );
 figure(env.fig);
 %% Run Dynamic Solver Step Loop
 
@@ -25,31 +26,30 @@ nmpc.DT = 0.1;
 nmpc.N = 20;
 nmpc.velMax = 2;
 nmpc.accMax = 5;
-nmpc.cbfParms = [0.2, 0.2];
-nmpc.obs_rad = 1;
+nmpc.cbfParms = [22, 86];
 nmpc.veh_rad = 0.55;
 nmpc.nObs = height(env.obstacles);
 nmpcSolver = createMPCDynamicObsSolver(nmpc);
 clearvars nmpc; disp("Solver Created")
 %%
 
-simSettings.cbfParms = repmat([22.6 , 86.4],5,1);
+simSettings.cbfParms = repmat([0.5 , 0.5],5,1);
 simSettings.N = nmpcSolver.settings.N;
 simSettings.DT = nmpcSolver.settings.DT;
 simSettings.veh_rad = nmpcSolver.settings.veh_rad;
-simSettings.loopSteps = 5;
+simSettings.loopSteps = 500;
 simSettings.maxSimTime = 100;
 simSettings.maxEpSteps = simSettings.maxSimTime / simSettings.DT;
 simSettings.endSepTol = 0.1;
 simSettings.vehStart = [0.0, 0.0, deg2rad(45), 0, 0]';
 simSettings.obstacles = env.obstacles;
-simSettings.target = [50.0 , 50.0 , deg2rad(45) , 0, 0 ]';
+simSettings.target = [ targetPos , deg2rad(45) , 0, 0 ]';
 simSettings.currentTime = 0.00;
 simSettings.mpcIter = 0;
 simSettings.ctrlHistory = NaN(simSettings.maxEpSteps,2);
 simSettings.ssHistory = NaN(simSettings.maxEpSteps,1);
 simSettings.stateHistory = NaN(5,simSettings.maxEpSteps);
-% need to add initial state
+simSettings.stateHistory(:,1) = simSettings.vehStart';
 simSettings.simTimeHistory = zeros(simSettings.maxEpSteps,1);
 simSettings.controlHorizon = zeros(simSettings.N,2);
 simSettings.X0 = repmat(simSettings.vehStart,1,simSettings.N+1)';
@@ -59,10 +59,12 @@ disp("Simulation Settings Created");
 %%
 
 simdata = simulationStepDyn(nmpcSolver, simSettings);
+disp("Simulation Complete")
 
-
-
-
+%% Static Plot for Dynamic Multi Obstacle
+close all; staticPlot= true; viewOnScreen = false;
+fig = visualiseSimulationDyn(simdata,staticPlot,viewOnScreen);
+figure(fig);
 
 %% ########################################################################################################
 %% Run full loop sim for single parameter [Dynamic Solver]
