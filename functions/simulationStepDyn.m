@@ -1,15 +1,8 @@
-function simdata = simulationStepDyn(solver,args,f, settings)
+function simdata = simulationStepDyn(nmpcSolver, settings)
 
-
-    if numel(cbfParms) ~= 2
-        fprintf("Error, number of cbf parameters incorrect, expected 2 got %d\n", numel(cbfParms));
-    else
-        cbfParms = reshape(cbfParms,2,1);
-    end
-
-    % if numel(obs_rad) ~= 1
-    %     fprintf("Error, obstacle radius arg, expected 1 got %d\n", numel(obs_rad));
-    % end
+    solver      = nmpcSolver.solver;
+    args        = nmpcSolver.args;
+    f           = nmpcSolver.f;
 
     cbfParms    = settings.cbfParms; 
     N           = settings.N;
@@ -18,11 +11,10 @@ function simdata = simulationStepDyn(solver,args,f, settings)
     veh_rad     = settings.veh_rad;    
     maxSimTime  = settings.maxSimTime;
     endSepTol   = settings.endSepTol;
-    maxTsteps    = settings.maxTsteps;
 
     current_state   = settings.vehStart(:);     % each step will pass in the start position
     obstacles       = settings.obstacles;       % static obstacle configuration in environment
-    target_state    = settings.target;          % target pose vehicle is navigating to
+    target_state    = settings.target(:);       % target pose vehicle is navigating to
     current_time    = settings.currentTime;     % time counter for current episode
     mpciter         = settings.mpcIter;         % MPC iteration counter for current episode
     u_safe_history  = settings.ctrlHistory;     % history of control actions applied to system
@@ -82,30 +74,28 @@ function simdata = simulationStepDyn(solver,args,f, settings)
         X0 = [ current_state' ;  X0(3:end,:) ; X0(end,:)];  % state horizon for next step, replace mpc current state with sim current state, end state appears on last two horizon steps
 
         % Evaluate end of step conditions
-        stepsComplete       = stepCount == maxTsteps;
+        stepsComplete       = stepCount == loopSteps;
         episodeTimeout      = mpciter*DT >= maxSimTime;
         obstacleCollision   = sep_safe <= 0.00; 
+        targetReached       = norm((current_state(1:2) - target_state(1:2)),2) <= endSepTol;
     
     end
     
-    
-    
     main_loop_time = toc(main_loop);
-    % ss_error = norm((current_state(1:2)-target_state(1:2)),2)
-    % average_mpc_time = main_loop_time/(mpciter+1)
+    
+    simdata.average_mpc_time = main_loop_time/stepCount;
     simdata.states = state_history;
-    simdata.ucbf = u_cbf_history;
-    simdata.umpc = u_mpc_history;
+    % simdata.ucbf = u_cbf_history;
+    % simdata.umpc = u_mpc_history;
     simdata.usafe = u_safe_history;
-    simdata.solutions = solution_history;
-    simdata.obstacle = obstacle;
+    % simdata.solutions = solution_history;
+    simdata.obstacles = obstacles;
     simdata.N = N;
     simdata.vrad = veh_rad;
     simdata.target = target_state';
     simdata.dt = DT;
     simdata.sep = safe_sep_history;
     simdata.cbf = cbfParms;
-    % simdata.mpcParms = mpcParms;
     simdata.looptime = main_loop_time;
 
     simdata.end_control_horizon = control_horizon;
@@ -114,27 +104,8 @@ end
 
 
 
-%%
 
-
-%%
-function nextTarget = getNextTarget(current_state, target_state)
-    target_ahead = 2.5;
-    x = current_state(1);
-    y = current_state(2);
-    w = atan2(y,x);
-    xg = target_state(1);
-    yg = target_state(2);
-    tw = atan2(yg,xg);
-    q = -(w - tw);
-    new_x = x*cos(q) - y*sin(q) + target_ahead*cos(tw);
-    new_y = x*sin(q) + y*cos(q) + target_ahead*sin(tw);
-    new_x = min(new_x,xg);
-    new_y = min(new_y,yg);
-    nextTarget = [new_x ; new_y ; target_state(3)];
-end
-
-%%
+%% LOCAL FUNCTIONS
 function [t_next, x0, u0, u_qp, sep_safe] = simulateTimeStep(tstep, t_now, x0, u, f, obstacle)
     st = x0;                                
     u_nom = u(1,:)';
@@ -156,141 +127,3 @@ function [t_next, x0, u0, u_qp, sep_safe] = simulateTimeStep(tstep, t_now, x0, u
     u0 = [ u_apply' ; u(3:size(u,1),:) ; u(size(u,1),:)];
 end
 
-%%
-function [u_safe, u_qp, sep_safe] = controlBarrierFunction(t, obs, u_nom,eta, cbfParms, r_veh, tstep)
-% controlBarrierFunction Compute safe outputs for each timestep based on 
-
-    % System states from inputs
-    % Variables used in ECBF
-    k1          = cbfParms(1);
-    k2          = cbfParms(2);
-
-    % earth frame positions
-    pos_x       = eta(1);
-    pos_y       = eta(2);
-    yaw         = eta(3);
-
-    % Obstacle parameters
-    r_obs       = obs(3);
-    obs_x       = obs(1);
-    obs_y       = obs(2);
-    
-    % Safe seperation distance parameters
-    sep_x          = obs_x - pos_x;
-    sep_y          = obs_y - pos_y;
-    rs          = r_obs + r_veh + 0.00;
-    DSEP        = [2*(sep_x*cos(yaw) + sep_y*sin(yaw)) , 0 ];
-    
-%   Linear Motion Control Barrier function terms
-    h           = sep_x^2 + sep_y^2 - rs^2 ;
-  % Lfh         = 2*Cx*v*cos(yaw) + 2*Cy*v*sin(yaw) ;   
-%   ECBF        = Lfh(eta,u) + k1*h(eta) >= 0;
-
-    % Safe clearance parameters
-    obstacle_bearing        = atan2(sep_y,sep_x);
-    veh2obs_angle           = wrapToPi(yaw - obstacle_bearing);
-    sep_centres             = sqrt(sep_x^2 + sep_y^2);
-    sep_safe                = sep_centres - r_obs - r_veh;
-    r_cbf = cbfParms(3);
-    d = 0.01*(1/r_obs);
-    d2 = sep_safe - r_cbf;
-    c = max(d,d2);
-    dw = 1/c; %min(1/sep_centres,r_obs*2);
-    clear_radius            = r_obs*dw + r_veh;
-    clear_obstacle_angle    = atan2(clear_radius,sep_centres);
-    
-    hh      = veh2obs_angle^2 - clear_obstacle_angle^2;
-  % Lfhh    = 2*veh2obs_angle * w ;
-  % ECBF    = Lfh(eta,u) + k2*h(eta) >= 0 ;  
-    ASEP    = [0 , 2*veh2obs_angle];
-    
-    % quadprog parameters
-    H       = 2*[   1 0     ; 
-                    0 1 ]   ;
-
-    f       = zeros(size(H,1),1); 
-
-    % Setup A & b matrices
-    A       =  [DSEP(1) ,  0   ;
-                0    , ASEP(2) ];
-    
-    b       = [ h*k1  + 2*(sep_x*cos(yaw) + sep_y*sin(yaw))*u_nom(1)  ;
-                hh*k2   + 2*veh2obs_angle*u_nom(2)              ];
-
-    % A = A(2,:);
-    % b = b(2,:);
-    Aeq     = [];    
-    beq     = []; 
-
-    u_qp   = [0;0];
-    flag = 0;
-    coder.extrinsic('quadprog');
-    options = optimset('Display','off');
-    [output, ~, flag]   = quadprog(H,f,A,b,Aeq,beq,[],[],[],options);
-
-    if flag == 1
-        u_qp = output;
-    else
-        disp("qp error");
-    end
-
-    if abs(u_qp(1)) > 1
-        pause(0.001);
-    end
-
-    if t > 4.9
-        pause(0.0001);
-    end
-    
-    u_safe  = u_nom - u_qp; 
-    u_safe(1) = max(u_safe(1),-5);
-    u_safe(1) = min(u_safe(1), 5);
-    u_safe(2) = max(u_safe(2),-1);
-    u_safe(2) = min(u_safe(2), 1);
-
-    % if u_safe(2) > 0
-    %     disp("lateral control error");
-    % end
-
-end
-
-function args = dynamicHorizon(Nmax,n,args)
-
-    % ADJUST LOWER AND UPPER BOUNDS DYNAMIC/SAFETY CONSTRAINTS ARGS 
-    % enable horizon dynamics for n steps
-    % start1 = 6
-    end1 = (5+5*n);
-    args.lbg(6: end1 ) = 0;
-    args.ubg(6: end1 ) = 0;
-    % disable horizon dynamics for N-n steps
-    start2 = end1 + 1;
-    end2   = end1 + 5*(Nmax-n);
-    args.lbg(start2:end2 ) = -inf;
-    args.ubg(start2:end2 ) =  inf;
-
-    % enable obstacle constraints for n+1 steps
-    start3 = end2 + 1; % start position for obstacle constraints
-    end3   = end2 + (n+1);
-    args.lbg(start3:end3) = 0;
-    args.ubg(start3:end3) = inf;
-    % disable obstacle constraints for N-n steps
-    start4 = end3 + 1;
-    args.lbg(start4:end ) = -inf;
-    args.ubg(start4:end ) =  inf;
-
-
-    % ADJUST UPPER AND LOWER BOUNDS STATE/CONTROLS LIMIT ARGS
-    velMax = 2; wMax = 1; accMaxL = 5; accMaxA = 1;
-    lbons  = [-10,  -10,  -inf, -velMax, -wMax ]';
-    lboffs = [-inf, -inf, -inf, -inf,    -inf  ]';
-    ubons  = [100, 100, inf, velMax, wMax ]';
-    uboffs = [inf, inf, inf, inf,    inf  ]';
-
-    lbonc = [-accMaxL, -accMaxA]';
-    lboffc = [-inf, -inf]';
-    ubonc = [ accMaxL,  accMaxA]';
-    uboffc = [ inf,  inf]';
-
-    args.lbx = vertcat(  repmat(lbons,(n+1),1), repmat(lboffs,(Nmax-n),1), repmat(lbonc,n,1), repmat(lboffc,(Nmax-n),1) );
-    args.ubx = vertcat(  repmat(ubons,(n+1),1), repmat(uboffs,(Nmax-n),1), repmat(ubonc,n,1), repmat(uboffc,(Nmax-n),1) );
-end

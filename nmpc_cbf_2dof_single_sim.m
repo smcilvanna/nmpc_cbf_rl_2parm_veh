@@ -1,9 +1,71 @@
+return
+%% 
+disp("")
 
-addpath("/home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh/functions/");
-addpath('/home/sm/matlab/com/casadi-3.6.7/');   % ### ADJUST PATH TO CASADI PACKAGE LOACTION ####
+%% Linux
+cd /home/sm/matlab/cbfRL/nmpc_cbf_rl_2parm_veh
+addpath("functions/");
+addpath('/home/sm/matlab/com/casadi-3.6.7/');
+clc; disp("Done")
+%% Windows (Win 11 Laptop)
+cd("C:\Users\14244039\OneDrive - Queen's University Belfast\win_11_qub\Documents\MATLAB\nmpc_cbf_rl_2parm_veh");
+addpath("functions\");
+addpath("C:\Users\14244039\AppData\Roaming\MathWorks\MATLAB Add-Ons\Collections\casadi-3.7.0-windows64-matlab2018b");
+clc; disp("Done");
+
+%% Setup Random Environment
+close all;
+env = generateRandomEnvironment(5,2.0,50,[5.0;5.0;5.0]);
+figure(env.fig);
+%% Run Dynamic Solver Step Loop
+
+% create solver
 import casadi.*
+nmpc.DT = 0.1; 
+nmpc.N = 20;
+nmpc.velMax = 2;
+nmpc.accMax = 5;
+nmpc.cbfParms = [0.2, 0.2];
+nmpc.obs_rad = 1;
+nmpc.veh_rad = 0.55;
+nmpc.nObs = height(env.obstacles);
+nmpcSolver = createMPCDynamicObsSolver(nmpc);
+clearvars nmpc; disp("Solver Created")
+%%
 
-%% Run for single parameter [Dynamic Solver]
+simSettings.cbfParms = repmat([22.6 , 86.4],5,1);
+simSettings.N = nmpcSolver.settings.N;
+simSettings.DT = nmpcSolver.settings.DT;
+simSettings.veh_rad = nmpcSolver.settings.veh_rad;
+simSettings.loopSteps = 5;
+simSettings.maxSimTime = 100;
+simSettings.maxEpSteps = simSettings.maxSimTime / simSettings.DT;
+simSettings.endSepTol = 0.1;
+simSettings.vehStart = [0.0, 0.0, deg2rad(45), 0, 0]';
+simSettings.obstacles = env.obstacles;
+simSettings.target = [50.0 , 50.0 , deg2rad(45) , 0, 0 ]';
+simSettings.currentTime = 0.00;
+simSettings.mpcIter = 0;
+simSettings.ctrlHistory = NaN(simSettings.maxEpSteps,2);
+simSettings.ssHistory = NaN(simSettings.maxEpSteps,1);
+simSettings.stateHistory = NaN(5,simSettings.maxEpSteps);
+% need to add initial state
+simSettings.simTimeHistory = zeros(simSettings.maxEpSteps,1);
+simSettings.controlHorizon = zeros(simSettings.N,2);
+simSettings.X0 = repmat(simSettings.vehStart,1,simSettings.N+1)';
+
+disp("Simulation Settings Created");
+
+%%
+
+simdata = simulationStepDyn(nmpcSolver, simSettings);
+
+
+
+
+
+%% ########################################################################################################
+%% Run full loop sim for single parameter [Dynamic Solver]
 clc
 % firstrun = ~exist("solver","var") || ~exist("args","var") || ~exist("f","var");
 firstrun = true;
@@ -14,10 +76,10 @@ if firstrun
     settings.N = 20;
     settings.velMax = 2;
     settings.accMax = 5;
-    settings.cbfParms = [0.2, 0.2];
+    settings.cbfParms = [22, 86];
     % settings.mpcParms = ones(14,1);
     % settings.mpcParms(7:9) = settings.cbfParms;
-    settings.obs_rad = 1;
+    settings.obs_rad = 5;
     settings.veh_rad = 0.55;
     [obstacle, target] = setupObstacleScenario(settings.obs_rad ,settings.veh_rad,[0,0,deg2rad(45)],false);
     % obstacle = [1000 1000 1];
@@ -35,6 +97,9 @@ end
 % settings.mpcParms   = zeros(14,1);
 % settings.veh_rad    =0.55;
 
+settings.maxSimTime = 100;
+settings.endSepTol = 0.1;
+
 simdata = simulationLoopDyn(solver,args,f, settings);
 
 
@@ -51,7 +116,7 @@ fprintf(" Average loop time        : %f ms\n",steptime);
 fprintf("###########################################################\n\n")
 
 % finish
-clearvars -except simdata* 
+% clearvars -except simdata* 
 disp("Simulation Done")
 return
 
