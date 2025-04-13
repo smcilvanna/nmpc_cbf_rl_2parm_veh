@@ -1,4 +1,4 @@
-function fig = visualiseSimulation(simdata,staticPlot,view,alim)
+function fig = visualiseSimulationDyn(simdata,staticPlot,view,alim)
     arguments
         simdata struct
         staticPlot logical = 0;
