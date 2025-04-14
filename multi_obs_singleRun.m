@@ -92,3 +92,73 @@ while ~isDone
     isDone = simdata.endAtTarget || simdata.endEpTimeout || simdata.endHitObs;
 end
 disp("Simulation Complete")
+
+
+
+
+
+
+
+
+%%
+%%
+
+%% >>> Environment Validation <<<
+if ~exist("agent","var")
+    agent = loadAgentFile();
+end
+% Setup Random Environment
+close all;
+targetPos = [50 , 50];
+env = generateRandomEnvironment(5, 1.0, 30, targetPos,[5.0;5.0;5.0] );
+figure(env.fig);
+clearvars targetPos
+   
+%% create solver
+import casadi.*
+nmpc.DT = 0.1; 
+nmpc.N = 20;
+nmpc.velMax = 2;
+nmpc.accMax = 5;
+nmpc.cbfParms = [0, 0];
+nmpc.veh_rad = 0.55;
+nmpc.nObs = height(env.obstacles);
+nmpcSolver = createMPCDynamicObsSolver(nmpc);
+clearvars nmpc; disp("Solver Created")
+%% create sim settings
+simSettings = setInitialStepSimSettings(100,1000,nmpcSolver,env);
+disp("Simulation Settings Created")
+
+%% Set CBF parameters
+for i = 1:height(env.obstacles)
+    test.obs = simSettings.obstacles(i,3);
+    test.actionN = getAction(agent, {test.obs});
+    test.action = denormaliseAction(test.actionN{1});
+    simSettings.cbfParms(i,1) = test.action(1); %k1
+    simSettings.cbfParms(i,2) = test.action(1)/test.action(2); %k2 (k1/kr)
+end
+
+% simSettings.cbfParms = simSettings.cbfParms .* 0.8;
+%% Single Shot Sim for number of steps [Dynamic Solver]
+disp("Starting Simulation")
+simdata = simulationStepDyn(nmpcSolver, simSettings);
+disp("Simulation Complete")
+
+%% Static Plot for Dynamic Multi Obstacle [Dynamic Solver]
+close all; staticPlot= true; viewOnScreen = false;
+fig = visualiseSimulationDyn(simdata,staticPlot,viewOnScreen);
+figure(fig);
+
+
+%% LOCAL FUNCTIONS
+
+function [ agent ] = loadAgentFile()
+    [fileName, filePath] = uigetfile('*.mat', 'Select a MAT-file', './temp_data');
+    if isequal(fileName, 0)
+        disp('File selection canceled.');   % Check if the user selected a file or canceled the operation
+    else
+        load( fullfile(filePath, fileName) , 'agent', 'verID','trainID'); % construct full path and load into workspace
+        disp(['Loaded MAT-file: ', fullfile(filePath, fileName)]);
+        fprintf(" Trained Agent TD3%s-%s\n",verID,trainID);
+    end
+end
