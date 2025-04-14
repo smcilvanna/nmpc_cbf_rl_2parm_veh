@@ -32,7 +32,7 @@ nmpc.veh_rad = 0.55;
 nmpc.nObs = height(env.obstacles);
 nmpcSolver = createMPCDynamicObsSolver(nmpc);
 clearvars nmpc; disp("Solver Created")
-%%
+%% Initial Step Sim Settings [Dynamic Solver]
 
 simSettings.cbfParms = repmat([22 , 86],5,1);
 simSettings.N = nmpcSolver.settings.N;
