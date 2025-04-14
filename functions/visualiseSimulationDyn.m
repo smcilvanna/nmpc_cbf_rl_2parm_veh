@@ -225,16 +225,16 @@ function fig = visualiseSimulationDyn(simdata,staticPlot,view,alim)
         title(ax2,"Linear Velocity"); ylabel("v (m/s)"); grid on
     
         ax3 = nexttile(10,[1 3]);
-        plot(ax3, t,angCtrl,LineWidth=2, Color=[0.8 0.1 0.1] ,DisplayName="Angular Velocity");
+        plot(ax3, t(1:end-1),angCtrl,LineWidth=2, Color=[0.8 0.1 0.1] ,DisplayName="Angular Velocity");
         title(ax3,"Angular Velocity"); ylabel("w (rad/s)"); grid on
     
         ax4 = nexttile(16,[1 3]);
         yyaxis left;
-        plot(ax4, t,dlv,LineWidth=2, Color=[0.1 0.1 0.9] ,DisplayName="\Delta u_v ");
+        plot(ax4, t(1:end-1),dlv,LineWidth=2, Color=[0.1 0.1 0.9] ,DisplayName="\Delta u_v ");
         ylabel("v (m/s^2)");
         hold(ax4,"on");
         yyaxis right
-        plot(ax4, t,dav,LineWidth=2, Color=[0.8 0.1 0.1] ,DisplayName="\Delta u_{\omega}");
+        plot(ax4, t(1:end-1),dav,LineWidth=2, Color=[0.8 0.1 0.1] ,DisplayName="\Delta u_{\omega}");
         ylabel("\Delta\omega (rad/s^2)");
         legend(ax4);
         title(ax4,"Control Changes"); xlabel("Time (seconds)")  ; grid on

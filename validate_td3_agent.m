@@ -223,7 +223,7 @@ clearvars targetPos
     nmpc.N = 20;
     nmpc.velMax = 2;
     nmpc.accMax = 5;
-    nmpc.cbfParms = [10, 40];
+    nmpc.cbfParms = [0, 0];
     nmpc.veh_rad = 0.55;
     nmpc.nObs = height(env.obstacles);
     nmpcSolver = createMPCDynamicObsSolver(nmpc);
@@ -232,7 +232,7 @@ clearvars targetPos
     simSettings = setInitialStepSimSettings(100,1000,nmpcSolver,env);
     disp("Simulation Settings Created")
 
-    %%
+    %% Set CBF parameters
     for i = 1:height(env.obstacles)
         test.obs = simSettings.obstacles(i,3);
         test.actionN = getAction(agent, {test.obs});
@@ -240,6 +240,8 @@ clearvars targetPos
         simSettings.cbfParms(i,1) = test.action(1); %k1
         simSettings.cbfParms(i,2) = test.action(1)/test.action(2); %k2 (k1/kr)
     end
+
+    % simSettings.cbfParms = simSettings.cbfParms .* 0.8;
     %% Single Shot Sim for number of steps [Dynamic Solver]
     disp("Starting Simulation")
     simdata = simulationStepDyn(nmpcSolver, simSettings);
