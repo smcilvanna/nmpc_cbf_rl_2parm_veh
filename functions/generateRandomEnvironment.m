@@ -11,8 +11,8 @@ function out = generateRandomEnvironment(num_circles, min_spacing, grid_size, ta
     % grid_size = 50;
     % num_circles = 5;
     circles = zeros(num_circles+2, 3);
-    circles(1,:) = [0 0 veh_rad];
-    circles(2,:) = [ targetPos(:).' , veh_rad ];
+    circles(1,:) = [0 0 veh_rad];                   % add a temp circle for the vehicle at start pos
+    circles(2,:) = [ targetPos(:).' , veh_rad ];    % add a temp circle for the vehicle at target pos
     current_count = 0;
 
     % Handle radius selection mode
@@ -68,8 +68,12 @@ function out = generateRandomEnvironment(num_circles, min_spacing, grid_size, ta
     for i = 3:height(circles)
         plotCircle([circles(i,1), circles(i,2)],circles(i,3),'-','r');
     end
-    ax.XLim = [0 grid_size];
-    ax.YLim = [0 grid_size];
+    scatter(targetPos(1),targetPos(2),100,"green",'x'); % mark target position
+
+    axLim = max(grid_size, max(targetPos));   % want to make the plot full extents of either the grid or the target position
+
+    ax.XLim = [0 axLim];
+    ax.YLim = [0 axLim];
 
     % put output elements into struct
     out.obstacles = circles(3:end,:);
