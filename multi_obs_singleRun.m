@@ -20,18 +20,12 @@ env = generateRandomEnvironment(4, 1.0, 20, targetPos,[5.0;5.0;5.0] );
 figure(env.fig);
 clearvars targetPos
 %% Run Dynamic Solver Step Loop [Dynamic Solver]
-
 % create solver stack
 import casadi.*
-nmpc.DT = 0.1; 
-nmpc.N = 20;
-nmpc.velMax = 2;
-nmpc.accMax = 5;
-nmpc.cbfParms = [0, 0];
-nmpc.veh_rad = 0.55;
-nmpc.nObs = height(env.obstacles);
-nmpcSolver = createMPCDynamicObsSolver(nmpc);
-clearvars nmpc; disp("Solver Created")
+settings.Nvals = 5:5:50;
+solverStack = createSolversMultiObs(settings);
+fprintf("%d NMPC solvers created\nN-Min : %d\nN-max: %d\n\n",numel(settings.Nvals),min(settings.Nvals),max(settings.Nvals)); 
+clearvars settings; 
 %% Initial Step Sim Settings [Dynamic Solver]
 
 simSettings.cbfParms = repmat([22 , 86],5,1);
