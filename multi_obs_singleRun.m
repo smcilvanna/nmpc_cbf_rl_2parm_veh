@@ -16,22 +16,24 @@ clc; disp("Done");
 %% Setup Random Environment
 close all;
 targetPos = [40 , 40];
-env = generateRandomEnvironment(5, 1.0, 20, targetPos,[1.0:1.0:10] );
+env = generateRandomEnvironment(5, 1.0, 20, targetPos, (1.0:1.0:10) );
 figure(env.fig);
 clearvars targetPos
 %% Run Dynamic Solver Step Loop [Dynamic Solver]
-% create solver stack
+% create environment map
+close all
+map = generateCurriculumEnvironment(1,rand(2,1));
+figure(map.fig);
+
+%% create solver stack
 import casadi.*
-settings.Nvals = 10:10:50;
-settings.nObs = height(env.obstacles);
+settings.Nvals = 10:20:110;
+settings.nObs = height(map.mpcReqObs);
 solvers = createSolversMultiObs(settings);
 fprintf("%d NMPC solvers created\nN-Min : %d\nN-max: %d\n\n",numel(settings.Nvals),min(settings.Nvals),max(settings.Nvals)); 
 clearvars settings; 
 
-%%
-close all
-map = generateCurriculumEnvironment(1,rand(2,1))
-figure(map.fig)
+
 
 
 %% Initial Step Sim Settings [Dynamic Solver]
@@ -54,11 +56,11 @@ clearvars fig staticPlot targetPos viewOnScreen
 %% Loop Step Sim Until Done [Dynamic Solver]
 % nmpcSolver = solvers.solverStack(1);
 nmpcSolver = solvers.solverStack(randi(height(solvers.solverStack)));
-simSettings = initialSimSettings(nmpcSolver,env);  % local function to initalise settings for step sim
+simSettings = initialSimSettings(nmpcSolver,map);  % local function to initalise settings for step sim
 simSettings.loopSteps = 5 /simSettings.DT;      % set number of steps per loop
 
 
-simSettings.normalised.actions = rand(5,2)*2 -1; % randomise cbf values
+simSettings.normalised.actions = rand(map.mpcReqObs,2)*2 -1; % randomise cbf values
 simSettings.normalised.minActs = [1 ; 0.05];
 simSettings.normalised.maxActs = [100 ; 2.0];
 
@@ -100,7 +102,7 @@ while ~isDone
     isDone = simdata.endAtTarget || simdata.endEpTimeout || simdata.endHitObs;
     nmpcSolver = solvers.solverStack(randi(height(solvers.solverStack)));
     [simSettings.X0 simSettings.controlHorizon] = resizeX0newN(simdata.end_X0,nmpcSolver.settings.N, simdata.end_control_horizon);
-    simSettings.normalised.actions = rand(5,2)*2 -1; % randomise cbf values
+    simSettings.normalised.actions = rand(map.mpcReqObs,2)*2 -1; % randomise cbf values
     fprintf(".");
 end
 

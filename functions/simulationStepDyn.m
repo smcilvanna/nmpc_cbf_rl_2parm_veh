@@ -43,7 +43,7 @@ function simdata = simulationStepDyn(nmpcSolver, settings)
     % assemble Pvector elements for cbf/obstacles [o1-cbf(2)   obstacle1(3)]
     pObstacles = zeros(height(obstacles)*5,1);
     for i = 1:height(obstacles)
-        o = (i-1)*5; % offset for each loop
+        o = (i-1)*height(obstacles); % offset for each loop
         pObstacles(1+o) = cbfParms(i,1);  % k1 value
         pObstacles(2+o) = cbfParms(i,2);  % k2 value
         pObstacles(3+o) = obstacles(i,1); % obstacle x-position
