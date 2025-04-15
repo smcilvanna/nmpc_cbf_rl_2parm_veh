@@ -15,19 +15,19 @@ clc; disp("Done");
 
 %% Setup Random Environment
 close all;
-targetPos = [50 , 50];
+targetPos = [30 , 30];
 env = generateRandomEnvironment(4, 1.0, 20, targetPos,[5.0;5.0;5.0] );
 figure(env.fig);
 clearvars targetPos
 %% Run Dynamic Solver Step Loop [Dynamic Solver]
 
-% create solver
+% create solver stack
 import casadi.*
 nmpc.DT = 0.1; 
 nmpc.N = 20;
 nmpc.velMax = 2;
 nmpc.accMax = 5;
-nmpc.cbfParms = [10, 40];
+nmpc.cbfParms = [0, 0];
 nmpc.veh_rad = 0.55;
 nmpc.nObs = height(env.obstacles);
 nmpcSolver = createMPCDynamicObsSolver(nmpc);
@@ -73,7 +73,14 @@ clearvars fig staticPlot targetPos viewOnScreen
 %% Loop Step Sim Until Done [Dynamic Solver]
 disp("Starting Simulation")
 isDone = false;
+simdata = [];
 allSimdata = [];
+lastActions.N = simSettings.N;
+lastActions.Nrange = 100;
+lastActions.cbf = simSettings.cbfParms;
+lastActions.k1range = 100;
+lastActions.krrange = 1;
+
 while ~isDone
 
     simdata = simulationStepDyn(nmpcSolver, simSettings);
@@ -88,6 +95,9 @@ while ~isDone
     simSettings.ctrlHistory = simdata.usafe;
     simSettings.ssHistory = simdata.sep;
     simSettings.stateHistory = simdata.states;
+    simSettings.cbfParms = simSettings.cbfParms + 1;
+
+    stepReward = getStepReward(simdata,lastActions);
 
     isDone = simdata.endAtTarget || simdata.endEpTimeout || simdata.endHitObs;
 end
