@@ -5,7 +5,7 @@ function simdata = simulationStepDyn(nmpcSolver, settings)
     f           = nmpcSolver.f;
 
     cbfParms    = settings.cbfParms; 
-    N           = settings.N;
+    N           = nmpcSolver.settings.N;
     DT          = settings.DT;
     loopSteps   = settings.loopSteps;
     veh_rad     = settings.veh_rad;    
@@ -74,7 +74,7 @@ function simdata = simulationStepDyn(nmpcSolver, settings)
         X0 = [ current_state' ;  X0(3:end,:) ; X0(end,:)];  % state horizon for next step, replace mpc current state with sim current state, end state appears on last two horizon steps
 
         % Evaluate end of step conditions
-        stepsComplete       = stepCount == loopSteps;
+        stepsComplete       = stepCount >= loopSteps;
         episodeTimeout      = mpciter*DT >= maxSimTime;
         obstacleCollision   = sep_safe <= 0.00; 
         targetReached       = norm((current_state(1:2) - target_state(1:2)),2) <= endSepTol;
@@ -106,6 +106,7 @@ function simdata = simulationStepDyn(nmpcSolver, settings)
     simdata.end_X0 = X0;
     simdata.end_current_state = current_state;
     simdata.end_current_time = current_time;
+    simdata.maxEpTime = settings.maxSimTime;
 end
 
 
