@@ -27,6 +27,13 @@ settings.nObs = height(env.obstacles);
 solvers = createSolversMultiObs(settings);
 fprintf("%d NMPC solvers created\nN-Min : %d\nN-max: %d\n\n",numel(settings.Nvals),min(settings.Nvals),max(settings.Nvals)); 
 clearvars settings; 
+
+%%
+close all
+map = generateCurriculumEnvironment(1,rand(2,1))
+figure(map.fig)
+
+
 %% Initial Step Sim Settings [Dynamic Solver]
 
 simSettings = initialSimSettings(solvers,env);  % local function to initalise settings for step sim
