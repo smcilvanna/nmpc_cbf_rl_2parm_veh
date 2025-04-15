@@ -7,7 +7,7 @@ function out = generateRandomEnvironment(num_circles, min_spacing, grid_size, ta
 %   circles     - 5x3 matrix [x, y, radius] for each circle
 %   coverage    - Percentage of grid area covered by circles
     out = struct;
-    veh_rad = 0.55;
+    veh_rad = 1.0;
     % grid_size = 50;
     % num_circles = 5;
     circles = zeros(num_circles+2, 3);

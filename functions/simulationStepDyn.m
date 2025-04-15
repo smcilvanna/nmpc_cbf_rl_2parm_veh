@@ -1,10 +1,18 @@
 function simdata = simulationStepDyn(nmpcSolver, settings)
 
+    % check if normalisation settings have been passed
+    if isfield(settings, "normalised")
+        realActions = denormaliseAction(settings.normalised.actions, settings.normalised.minActs, settings.normalised.maxActs);
+        cbfParms = [realActions(:,1) ,  realActions(:,1) ./ realActions(:,2)];
+        simdata.ncbf = settings.normalised.actions;
+    else
+        cbfParms    = settings.cbfParms; 
+        simdata.ncbf = NaN(2,1);
+    end
+
     solver      = nmpcSolver.solver;
     args        = nmpcSolver.args;
     f           = nmpcSolver.f;
-
-    cbfParms    = settings.cbfParms; 
     N           = nmpcSolver.settings.N;
     DT          = settings.DT;
     loopSteps   = settings.loopSteps;

@@ -15,8 +15,8 @@ clc; disp("Done");
 
 %% Setup Random Environment
 close all;
-targetPos = [30 , 30];
-env = generateRandomEnvironment(4, 1.0, 30, targetPos,[5.0;5.0;5.0] );
+targetPos = [40 , 40];
+env = generateRandomEnvironment(5, 1.0, 20, targetPos,[1.0:1.0:10] );
 figure(env.fig);
 clearvars targetPos
 %% Run Dynamic Solver Step Loop [Dynamic Solver]
@@ -45,7 +45,16 @@ figure(fig);
 %%
 clearvars fig staticPlot targetPos viewOnScreen
 %% Loop Step Sim Until Done [Dynamic Solver]
-simSettings = initialSimSettings(solvers,env);  % local function to initalise settings for step sim
+% nmpcSolver = solvers.solverStack(1);
+nmpcSolver = solvers.solverStack(randi(height(solvers.solverStack)));
+simSettings = initialSimSettings(nmpcSolver,env);  % local function to initalise settings for step sim
+simSettings.loopSteps = 5 /simSettings.DT;      % set number of steps per loop
+
+
+simSettings.normalised.actions = rand(5,2)*2 -1; % randomise cbf values
+simSettings.normalised.minActs = [1 ; 0.05];
+simSettings.normalised.maxActs = [100 ; 2.0];
+
 disp("Starting Simulation")
 isDone = false;
 simdata = [];
@@ -55,9 +64,9 @@ lastActions.N = simSettings.N;
 lastActions.Nrange = 100;
 lastActions.cbf = simSettings.cbfParms;
 lastActions.k1range = 100;
-lastActions.krrange = 1;
+lastActions.krrange = 100;  % this is k2 range for this setup
 
-nmpcSolver = solvers.solverStack(1);
+
 
 while ~isDone
     % run the simulation step
@@ -68,29 +77,42 @@ while ~isDone
     stepReward = getStepReward(simdata,lastActions);
     stepRewards = [stepRewards , stepReward ];
     % update simSettings for next step
-    simSettings.X0 = simdata.end_X0;
+    
     simSettings.currentTime = simdata.end_current_time;
     simSettings.currentState = simdata.end_current_state;
     simSettings.mpcIter = simdata.mpcIter;
     simSettings.ctrlHistory = simdata.usafe;
     simSettings.ssHistory = simdata.sep;
     simSettings.stateHistory = simdata.states;
-    simSettings.cbfParms = simSettings.cbfParms + 1;
+    simSettings.cbfParms(1,:) = randi(100);
+    simSettings.cbfParms(2,:) = simSettings.cbfParms(1)/rand();
     % update last actions for next step
     lastActions.N = simdata.N;
     lastActions.cbf = simdata.cbf;
     % check if done
     isDone = simdata.endAtTarget || simdata.endEpTimeout || simdata.endHitObs;
+    nmpcSolver = solvers.solverStack(randi(height(solvers.solverStack)));
+    [simSettings.X0 simSettings.controlHorizon] = resizeX0newN(simdata.end_X0,nmpcSolver.settings.N, simdata.end_control_horizon);
+    simSettings.normalised.actions = rand(5,2)*2 -1; % randomise cbf values
     fprintf(".");
 end
-fprintf("\nSimulation Complete\n\n");
+
+fprintf("\n  Total Episode Reward : %.2f \n", sum([stepRewards.reward]));
+fprintf("         Progress Reward : %.2f \n", sum([stepRewards.rProgress]));
+fprintf("         Velocity Reward : %.2f \n", sum([stepRewards.rVelocity]));
+fprintf("      Computation Reward : %.2f \n", sum([stepRewards.rComp]));
+fprintf("        Parameter Reward : %.2f \n", sum([stepRewards.rParmStability]));
+fprintf("       Collision Penalty : %.2f \n", sum([stepRewards.rCollision]));
+fprintf("        MPC Time Penalty : %.2f \n", sum([stepRewards.rMPCtimeout]));
+fprintf("    Goal Terminal Reward : %.2f \n", sum([stepRewards.rTermGoal]));
+fprintf("    Time Terminal Reward : %.2f \n", sum([stepRewards.rTermTime]));
+fprintf(" Timeout Terminal Penalty: %.2f \n", sum([stepRewards.rTermEpTimeout]));
+fprintf("\nSimulation of %.2f seconds -> Complete!\n\n",simdata.end_current_time);
 
 %%
 close all; staticPlot= true; viewOnScreen = false;
 fig = visualiseSimulationDyn(simdata,staticPlot,viewOnScreen);
 figure(fig);
-
-
 
 
 
@@ -158,11 +180,11 @@ function [ agent ] = loadAgentFile()
 end
 
 
-function simSettings = initialSimSettings(solvers,env)
+function simSettings = initialSimSettings(solver,env)
     simSettings.cbfParms = repmat([22 , 86],5,1);
-    simSettings.N = solvers.solverN(1);
-    simSettings.DT = solvers.solverStack(1).settings.DT;
-    simSettings.veh_rad = solvers.solverStack(1).settings.veh_rad;
+    simSettings.N = solver.settings.N;
+    simSettings.DT = solver.settings.DT;
+    simSettings.veh_rad = solver.settings.veh_rad;
     simSettings.loopSteps = 3;
     simSettings.maxSimTime = 100;
     simSettings.maxEpSteps = simSettings.maxSimTime / simSettings.DT;
@@ -179,7 +201,19 @@ function simSettings = initialSimSettings(solvers,env)
     simSettings.simTimeHistory = zeros(simSettings.maxEpSteps,1);
     simSettings.controlHorizon = zeros(simSettings.N,2);
     simSettings.X0 = repmat(simSettings.currentState,1,simSettings.N+1)';
-
     disp("Simulation INITIAL Settings Created");
+end
+
+function [X0 , controlHorizon] = resizeX0newN(lastX0,N,lastCH)
+    lastN = height(lastX0)-1;
+
+    if N <= lastN
+        X0 = lastX0(1:N+1,:);
+        controlHorizon = lastCH(1:N,:);
+    else
+        extraRows = N-lastN;
+        X0 = [lastX0; repmat(lastX0(end,:),extraRows,1)];
+        controlHorizon = [lastCH ; repmat(lastCH(end,:),extraRows,1)];
+    end
 
 end
