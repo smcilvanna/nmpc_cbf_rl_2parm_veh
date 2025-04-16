@@ -1,20 +1,29 @@
 function simdata = simulationStepDyn(nmpcSolver, settings)
 
     % check if normalisation settings have been passed
-    if isfield(settings, "normalised")
-        realActions = denormaliseAction(settings.normalised.actions, settings.normalised.minActs, settings.normalised.maxActs);
-        cbfParms = [realActions(:,1) ,  realActions(:,1) ./ realActions(:,2)];
-        simdata.ncbf = settings.normalised.actions;
+    if settings.normalisedActions
+        % nActions = settings.cbfParms;
+        k1s = Normalizer.denormalize01(settings.cbfParms(:,1),settings.realCbfMin(1),settings.realCbfMax(1));
+        krs = Normalizer.denormalize01(settings.cbfParms(:,2),settings.realCbfMin(2),settings.realCbfMax(2));
+        k2s = k1s ./ krs;
+        cbfParms = [k1s , k2s ];
+        simdata.cbf = settings.cbfParms;
+        N = nmpcSolver.settings.N;
+        simdata.N = N;
+        simdata.Naction = settings.N;
     else
         cbfParms    = settings.cbfParms; 
-        simdata.ncbf = NaN(2,1);
+        simdata.cbf = cbfParms;
+        N = nmpcSolver.settings.N;
+        simdata.N = N;
+        simdata.Naction = N;
     end
 
     solver      = nmpcSolver.solver;
     args        = nmpcSolver.args;
     f           = nmpcSolver.f;
-    N           = nmpcSolver.settings.N;
-    DT          = settings.DT;
+    
+    DT          = nmpcSolver.settings.DT;
     loopSteps   = settings.loopSteps;
     veh_rad     = settings.veh_rad;    
     maxSimTime  = settings.maxSimTime;
@@ -43,7 +52,7 @@ function simdata = simulationStepDyn(nmpcSolver, settings)
     % assemble Pvector elements for cbf/obstacles [o1-cbf(2)   obstacle1(3)]
     pObstacles = zeros(height(obstacles)*5,1);
     for i = 1:height(obstacles)
-        o = (i-1)*height(obstacles); % offset for each loop
+        o = (i-1)*5; % offset for each loop
         pObstacles(1+o) = cbfParms(i,1);  % k1 value
         pObstacles(2+o) = cbfParms(i,2);  % k2 value
         pObstacles(3+o) = obstacles(i,1); % obstacle x-position
@@ -98,12 +107,10 @@ function simdata = simulationStepDyn(nmpcSolver, settings)
     simdata.usafe = ctrlHistory;
     % simdata.solutions = solution_history;
     simdata.obstacles = obstacles;
-    simdata.N = N;
     simdata.vrad = veh_rad;
     simdata.target = target_state';
     simdata.dt = DT;
     simdata.sep = ssHistory;
-    simdata.cbf = cbfParms;
     simdata.looptime = main_loop_time;
     simdata.mpcIter = mpciter;
     simdata.endAtTarget = targetReached;
@@ -115,6 +122,9 @@ function simdata = simulationStepDyn(nmpcSolver, settings)
     simdata.end_current_state = current_state;
     simdata.end_current_time = current_time;
     simdata.maxEpTime = settings.maxSimTime;
+    simdata.maxVel = nmpcSolver.settings.velMax;
+    simdata.maxAcc = nmpcSolver.settings.accMax;
+    simdata.numSteps = stepCount;
 end
 
 

@@ -22,13 +22,13 @@ clearvars targetPos
 %% Run Dynamic Solver Step Loop [Dynamic Solver]
 % create environment map
 close all
-map = generateCurriculumEnvironment(1,rand(2,1));
+map = generateCurriculumEnvironment(3,rand(2,1));
 figure(map.fig);
 
 %% create solver stack
 import casadi.*
-settings.Nvals = 10:20:110;
-settings.nObs = height(map.mpcReqObs);
+settings.Nvals = 20:10:50;
+settings.nObs = map.mpcReqObs;
 solvers = createSolversMultiObs(settings);
 fprintf("%d NMPC solvers created\nN-Min : %d\nN-max: %d\n\n",numel(settings.Nvals),min(settings.Nvals),max(settings.Nvals)); 
 clearvars settings; 
@@ -55,28 +55,33 @@ figure(fig);
 clearvars fig staticPlot targetPos viewOnScreen
 %% Loop Step Sim Until Done [Dynamic Solver]
 % nmpcSolver = solvers.solverStack(1);
-nmpcSolver = solvers.solverStack(randi(height(solvers.solverStack)));
+randSolverIdx = randi(height(solvers.solverN));
+nmpcSolver = solvers.solverStack(randSolverIdx);
 simSettings = initialSimSettings(nmpcSolver,map);  % local function to initalise settings for step sim
-simSettings.loopSteps = 5 /simSettings.DT;      % set number of steps per loop
+simSettings.loopSteps = 1 /simSettings.DT;      % set number of steps per loop
 
 
-simSettings.normalised.actions = rand(map.mpcReqObs,2)*2 -1; % randomise cbf values
-simSettings.normalised.minActs = [1 ; 0.05];
-simSettings.normalised.maxActs = [100 ; 2.0];
+simSettings.normalisedActions = true; % normalised actions flag
+simSettings.realCbfMin  = [0.1 0.01]; % [k1 kr] min real values
+simSettings.realCbfMax  = [100 2.0 ]; % [k1 kr] max real values
+simSettings.cbfParms = rand(map.mpcReqObs,2); % randomise cbf values
+simSettings.randSolverIdx = randSolverIdx;     % choose random index for solver
+simSettings.realN = solvers.solverN(simSettings.randSolverIdx); % random Nvalue from solver set
+simSettings.N = (simSettings.realN - min(solvers.solverN))/(max(solvers.solverN) - min(solvers.solverN)); % random normalised N
 
-disp("Starting Simulation")
+
 isDone = false;
 simdata = [];
 allSimdata = [];
 stepRewards = [];
 lastActions.N = simSettings.N;
-lastActions.Nrange = 100;
 lastActions.cbf = simSettings.cbfParms;
-lastActions.k1range = 100;
-lastActions.krrange = 100;  % this is k2 range for this setup
+% lastActions.realNrange = [min(solvers.solverN) , max(solvers.solverN)]
+% lastActions.realk1range = abs(diff([simSettings.realCbfMin(1) , simSettings.realCbfMax(1)]));
+% lastActions.realk2range = abs(diff([simSettings.realCbfMin(2) , simSettings.realCbfMax(2)]));  
 
 
-
+disp("Starting Simulation")
 while ~isDone
     % run the simulation step
     simdata = simulationStepDyn(nmpcSolver, simSettings);
@@ -93,13 +98,14 @@ while ~isDone
     simSettings.ctrlHistory = simdata.usafe;
     simSettings.ssHistory = simdata.sep;
     simSettings.stateHistory = simdata.states;
-    simSettings.cbfParms(1,:) = randi(100);
-    simSettings.cbfParms(2,:) = simSettings.cbfParms(1)/rand();
+    simSettings.cbfParms(1,:) = rand(); % normalised k1
+    simSettings.cbfParms(2,:) = rand(); % normalised kr
     % update last actions for next step
     lastActions.N = simdata.N;
     lastActions.cbf = simdata.cbf;
     % check if done
     isDone = simdata.endAtTarget || simdata.endEpTimeout || simdata.endHitObs;
+    isDone = true;
     nmpcSolver = solvers.solverStack(randi(height(solvers.solverStack)));
     [simSettings.X0 simSettings.controlHorizon] = resizeX0newN(simdata.end_X0,nmpcSolver.settings.N, simdata.end_control_horizon);
     simSettings.normalised.actions = rand(map.mpcReqObs,2)*2 -1; % randomise cbf values
@@ -190,7 +196,7 @@ end
 
 
 function simSettings = initialSimSettings(solver,env)
-    simSettings.cbfParms = repmat([22 , 86],5,1);
+    simSettings.cbfParms = repmat([22 , 86],env.mpcReqObs,1);
     simSettings.N = solver.settings.N;
     simSettings.DT = solver.settings.DT;
     simSettings.veh_rad = solver.settings.veh_rad;

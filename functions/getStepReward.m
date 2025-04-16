@@ -8,22 +8,21 @@ function reward = getStepReward(simdata,lastActions)
     [rProgress , rVelocity , rComp , rParmStability , rCollision , rMPCtimeout , rTermGoal , rTermTime , rTermEpTimeout] = deal(0);
 
     % step reward weights
-    w = [   1,...   % progress
-            1,...   % velocity
-            1,...   % computation
-            1,...   % nStab
-            1,...   % k1Stab
-            1];     % krStab
+    w = [   1,...   % (1) Step progress reward/penalty          [-1 1]
+            1,...   % (2) Step forward velocity reward/penalty  [-1 1]
+            1,...   % (3) Step computation time reward/penalty  [-1 1]
+            1,...   % (4) parameter stability                   [-1 1]
+            10,...  % (5) Terminal collision penalty            [-1 or 0] 
+            8,...   % (6) Terminal reached goal reward          [ 0 or 1]
+            3,...   % (7) Terminal time reward                  [0 1]
+            3 ];    % (8) Terminal timeout penalty              [-1 or 0]
 
-    % penalty weights, negative values are assigned below
-    pen = [ 100,... % collision
-            10,...  % computation time
-            10];    % not used
-    
-    % Terminal rewards/penalty weights, any negative values assigned below
-    wt = [  100,... % at target
-            100,... % efficiency bonus (at target faster)
-            100 ];  % episode timeout penalty
+    sum_weights = sum(w);
+    w = w / sum_weights;
+
+
+    maxDist = simdata.maxVel * (simdata.numSteps * simdata.dt); % distance could have travelled in this step
+    maxDist = maxDist * 0.85; % set slightly lower max distance
 
     % Progress reward: Reward for getting closer to the target
     %   r_progress = w(1) * (previous_distance_to_goal - current_distance_to_goal)
@@ -32,56 +31,84 @@ function reward = getStepReward(simdata,lastActions)
     targetPos = simdata.target';
     prevGoalDist = norm(targetPos(1:2)-startPos(1:2));
     currentGoalDist = norm(targetPos(1:2)-endPos(1:2));
-    rProgress = w(1) * (prevGoalDist - currentGoalDist);
+    distTravel = (prevGoalDist - currentGoalDist);
+    if distTravel > 0
+        % Moving closer: reward [0, 1]
+        distTravel = min(maxDist,distTravel); % upper limit for travel distance for next calculation
+        rProgress = distTravel / maxDist;   % Reward [0 1]
+    elseif distTravel <=0
+        % Moving away: penalty [-1, 0]  
+        distTravel = min(maxDist,abs(distTravel-0.1));
+        rProgress = - (distTravel / maxDist);
+    end
+
+
 
     % Velocity maintenance reward: Reward for maintaining desired speed
     %       r_velocity = β * (1 - |desired_velocity - current_velocity| / desired_velocity)
-
-    desVel = 2.0*0.9;                                       % desired velocity as 90% of max velocity
-    currentVel = min(endPos(4),desVel);                     % cap the current velocity at desired velocity for next calculation
-    rVelocity = w(2) * (1 - abs(desVel-currentVel)/desVel); % velocity reward
+    desVel = simdata.maxVel;  % Use full max velocity as target
+    currentVel = endPos(4);   % Use actual velocity (no capping)
+    
+    if currentVel >= 0
+        % Forward movement reward/penalty (peaks at desVel)
+        velError = abs(desVel - currentVel);
+        rVelocity = 1 - (velError / desVel);  % [1 - 2*|error|] → [-1, 1]
+    else
+        % Backward movement penalty (asymmetric)
+        reverseSpeed = abs(currentVel);
+        % Base penalty + 30% extra penalty for any reverse movement
+        rVelocity = - (reverseSpeed + 0.3*desVel) / desVel;  
+        % Clamp to [-1.3, -0.3] then scale to [-1, -0.23]
+        rVelocity = max(-1, min(-0.23, rVelocity));
+    end
     
     
-    % Computational efficiency reward: Reward for keeping computation time low
-    %   r_computation = γ * (1 - computation_time / max_allowed_computation_time)
+    % Computational efficiency reward: Penalize long compute times asymmetrically
+    % maxCompTime = 200;  % 200 ms → -1 reward
+    stepCompTime = simdata.average_mpc_time * 1000;  % Convert to ms
     
-    maxCompTime = 100;                                  % dont want to exceed 100ms
-    stepCompTime = simdata.average_mpc_time*1000;       % average comp time in previous steps
-    stepCompTime = min(stepCompTime,maxCompTime);       % cap at max for next calculation
-    rComp = w(3) * (1 - stepCompTime/maxCompTime);      % calculate comp reward
+    if stepCompTime <= 5
+        % Maximum reward for fastest compute times [0-5ms]
+        rComp = 1;
+    elseif stepCompTime <= 100
+        % Linear decay from 1→0 between 5-100ms
+        rComp = 1 - ((stepCompTime - 5) / (100 - 5));
+    elseif stepCompTime <= 200
+        % Linear penalty from 0→-1 between 100-200ms
+        rComp = -((stepCompTime - 100) / (200 - 100));
+    else
+        % Minimum penalty for exceeding 200ms
+        rComp = -1;
+    end
     
     % Parameter stability reward: Small reward for not drastically changing parameters
     %     r_stability = δ * (1 - |current_parameters - previous_parameters| / parameter_range)
     %   calculate seperate rewards for each cbf and horizon parameter, would work for real or normalised actions
-    nStabReward = w(4) * ( 1 - abs(simdata.N - lastActions.N)/lastActions.Nrange );
-    k1StabReward = w(5) * ( 1 - max(abs(simdata.cbf(:,1)-lastActions.cbf(:,1)))/lastActions.k1range );
-    krStabReward = w(6) * ( 1 - max(abs(simdata.cbf(:,2)-lastActions.cbf(:,2)))/lastActions.krrange );
-    rParmStability = nStabReward + k1StabReward + krStabReward;
-
-    % Computational timeout penalty: Penalty if MPC doesn't solve within time limit
-    if simdata.average_mpc_time*1000 > 200
-        rMPCtimeout = -pen(2);
-    end
+    nStabReward  = ( 1 - abs(simdata.Naction - lastActions.N) );   % normalised range is 0 1
+    k1StabReward = ( 1 - max(abs(simdata.cbf(:,1)-lastActions.cbf(:,1))));
+    krStabReward = ( 1 - max(abs(simdata.cbf(:,2)-lastActions.cbf(:,2))));
+    rParmStability = (nStabReward + k1StabReward + krStabReward)/3;
 
      % >>>> Terminal Rewards
 
     % Collision penalty: Large negative reward for collisions
     if simdata.endHitObs
-        rCollision = -pen(1);
+        rCollision = -1;
     end
 
     if simdata.endAtTarget
-        rTermGoal = wt(1);
-        rTermTime = wt(2)*(( simdata.maxEpTime-simdata.end_current_time)/simdata.maxEpTime);
+        rTermGoal = 1;
+        rTermTime = ( (simdata.maxEpTime-simdata.end_current_time) / simdata.maxEpTime );
     end
 
     if simdata.endEpTimeout
-        rTermEpTimeout = -wt(3);
+        rTermEpTimeout = -1;
     end
    
     % Calculate the total reward
-    rTotal = rProgress + rVelocity + rComp + rParmStability + rCollision + rMPCtimeout + rTermGoal + rTermTime + rTermEpTimeout ;
+    rTotal = w(1)*rProgress + w(2)*rVelocity + w(3)*rComp + w(4)*rParmStability + w(5)*rCollision + w(6)*rTermGoal + w(7)*rTermTime + w(8)*rTermEpTimeout ;
     reward = struct;
+    reward.weights = w;
     reward.reward = rTotal;
     reward.rProgress = rProgress;
     reward.rVelocity = rVelocity;

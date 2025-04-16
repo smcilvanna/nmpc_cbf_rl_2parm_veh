@@ -121,7 +121,7 @@ function out = generateCurriculumEnvironment(curriculum_level, targetPosNormal)
             end
 
 
-            out.obstacles(end+1,:) = [out.obstacles(3,1) , out.obstacles(3,2) , 0.01 ];
+            out.obstacles(end+1,:) = [out.obstacles(2,1) , out.obstacles(2,2) , 0.01 ];
         end
 
         if curriculum_level == 5 && coverage < 60
