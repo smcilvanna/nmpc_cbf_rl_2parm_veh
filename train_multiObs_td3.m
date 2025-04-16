@@ -17,18 +17,75 @@ clc; disp("Done");
 %% Create the solver stack
 import casadi.*
 solverSettings.Nvals = 10:20:100;                  % values for solvers in stack
-solverSettings.nObs = 5;
+solverSettings.nObs = 6;
 solvers = createSolversMultiObs(solverSettings);
 fprintf("%d NMPC solvers created\nN-Min : %d\nN-max: %d\n\n",numel(solverSettings.Nvals),min(solverSettings.Nvals),max(solverSettings.Nvals)); 
 
 %% Setup Environment For NMPC-CBF 2 parameter training
 % This environment will train to learn the optimal NMPC-CBF controller CBF parameters (2) and Horizon-N length.
 % Reward function is defined in matlab function getStepReward()
-% The environment will be randomly created
-obsInfo = rlNumericSpec([1 1], 'LowerLimit', -inf , 'UpperLimit', inf );
+% The environment will be randomly created and difficulty progressivly increased during the training
+
+% Observations = [ Vehicle State(7) ; Obstacle-Information(25)       ; MPC-Information(1) ; Target-Information(1) ]
+%                   Lin/Ang Vel (2)          dist/ang obs (18)[3*6]       prevCompTime(1)       %progress2goal(1)
+%                     prev vels (2)             obs radii (6)
+%               target dist/ang (3)        density curLvl (1)
+obsInfo = rlNumericSpec([34 1], 'LowerLimit', -inf , 'UpperLimit', inf );
 actInfo = rlNumericSpec([2 1], 'LowerLimit', [-inf ; -inf] , 'UpperLimit', [inf ; inf] ); % action(2) is k1/k2 ratio rather than k2 as previous
 env = rlFunctionEnv(obsInfo, actInfo, @(action, loggedSignals) stepFunction(action, loggedSignals, nmpcSolver), @() resetFunction(obsSet));
 disp("RL Environment Created");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 %% TD3 Network Setup
 
 % Actor Network
