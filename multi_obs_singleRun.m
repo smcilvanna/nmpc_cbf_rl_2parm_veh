@@ -14,28 +14,101 @@ addpath("C:\Users\14244039\AppData\Roaming\MathWorks\MATLAB Add-Ons\Collections\
 clc; disp("Done");
 
 %% Setup Random Environment
-close all;
-targetPos = [40 , 40];
-env = generateRandomEnvironment(5, 1.0, 20, targetPos, (1.0:1.0:10) );
-figure(env.fig);
-clearvars targetPos
-%% Run Dynamic Solver Step Loop [Dynamic Solver]
+% close all;
+% targetPos = [40 , 40];
+% env = generateRandomEnvironment(5, 1.0, 20, targetPos, (1.0:1.0:10) );
+% figure(env.fig);
+% clearvars targetPos
+%% ############################################################## 
+%% Setup For Step Simulation Loop [Dynamic Variable N Solver]
 % create environment map
 close all
 map = generateCurriculumEnvironment(3,rand(2,1));
 figure(map.fig);
-
+ax = findall(map.fig, 'type', 'axes');  % Find all axes in the figure
+axes(ax); axis square; grid on;
 %% create solver stack
 import casadi.*
-settings.Nvals = 20:10:50;
+settings.Nvals = 10:10:100;
 settings.nObs = map.mpcReqObs;
 solvers = createSolversMultiObs(settings);
 fprintf("%d NMPC solvers created\nN-Min : %d\nN-max: %d\n\n",numel(settings.Nvals),min(settings.Nvals),max(settings.Nvals)); 
 clearvars settings; 
 
+%% Loop Step Sim Until Done [Dynamic Solver]
+stepTime = 5; % seconds : how long the episode step runs for
+randSolverIdx = randi(height(solvers.solverN));     % random solver index
+nmpcSolver = solvers.solverStack(randSolverIdx);    % choose random solver
+simSettings = initialSimSettings(nmpcSolver,map);   % local function to initalise settings for step sim
+simSettings.loopSteps = stepTime /simSettings.DT;   % set number of steps per loop
+simSettings.normalisedActions = true;               % enable normalised actions flag
+simSettings.realCbfMin  = [0.1 0.01];               % [k1 kr] min real values
+simSettings.realCbfMax  = [100 2.0 ];               % [k1 kr] max real values
+simSettings.cbfParms = rand(map.mpcReqObs,2);       % randomise cbf values
+simSettings.randSolverIdx = randSolverIdx;          % choose random index for solver
+simSettings.realN = solvers.solverN(simSettings.randSolverIdx); % random Nvalue from solver set
+temp = Normalizer.normalize01(simSettings.realN, min(solvers.solverN), max(solvers.solverN)); % random normalised N
+isDone = false;                             % init flag to false
+simdata = [];                               % init empty arrays
+allSimdata = [];                            
+stepRewards = [];
+lastActions.N = simSettings.N;              % init last actions to current actions for reward calculation
+lastActions.cbf = simSettings.cbfParms;
+
+disp("Starting Simulation")
+while ~isDone
+    % run the simulation step
+    simdata = simulationStepDyn(nmpcSolver, simSettings);
+    
+    % log simdata
+    allSimdata = [allSimdata ; simdata ];
+    
+    % calculate rewards for this step
+    stepReward = getStepReward(simdata,lastActions);
+    stepRewards = [stepRewards , stepReward ];
+
+    % check if done
+    isDone = simdata.endAtTarget || simdata.endEpTimeout || simdata.endHitObs;
+    % isDone = true;        % early stop for one step
+    
+    % update simSettings for next step
+    simSettings.currentTime = simdata.end_current_time;     % start time
+    simSettings.currentState = simdata.end_current_state;   % start vehicle state
+    simSettings.mpcIter = simdata.mpcIter;                  % start mpc iteration count
+    simSettings.ctrlHistory = simdata.usafe;                % control history array
+    simSettings.ssHistory = simdata.sep;                    % safe seperation history array
+    simSettings.stateHistory = simdata.states;              % state history
+    simSettings.cbfParms = rand(map.mpcReqObs,2);           % normalised random cbf parms
+    nmpcSolver = solvers.solverStack(randi(height(solvers.solverStack)));   % randomised solver for next step (rl-action)
+    [simSettings.X0 simSettings.controlHorizon] = resizeX0newN(simdata.end_X0,nmpcSolver.settings.N, simdata.end_control_horizon); % reshape mpc arrays for new horizon
+    simSettings.normalised.actions = rand(map.mpcReqObs,2)*2 -1; % randomise cbf values (rl-actions)
+    lastActions.N = simdata.N;                              % store last N action for reward calculation
+    lastActions.cbf = simdata.cbf;                          % store last cbfs for reward calculation
+    fprintf(".");
+end
+
+% Print Info To Console
+fprintf("\n  Total Episode Reward : %.2f\n", sum([stepRewards.reward]));
+fprintf("         Progress Reward : %.2f %.3f \n", sum([stepRewards.rProgress])      , stepReward.weights(1));
+fprintf("         Velocity Reward : %.2f %.3f \n", sum([stepRewards.rVelocity])      , stepReward.weights(2));
+fprintf("      Computation Reward : %.2f %.3f \n", sum([stepRewards.rComp])          , stepReward.weights(3));
+fprintf("        Parameter Reward : %.2f %.3f \n", sum([stepRewards.rParmStability]) , stepReward.weights(4));
+fprintf("       Collision Penalty : %.2f      \n", sum([stepRewards.rCollision]));
+fprintf("    Goal Terminal Reward : %.2f      \n", sum([stepRewards.rTermGoal]));
+fprintf("    Time Terminal Reward : %.2f %.3f \n", sum([stepRewards.rTermTime])      , stepReward.weights(5));
+fprintf(" Timeout Terminal Penalty: %.2f      \n", sum([stepRewards.rTermEpTimeout]));
+fprintf("\nSimulation of %.2f seconds -> Complete!\n\n",simdata.end_current_time);
+
+%%
+close all; staticPlot= true; viewOnScreen = false;
+fig = visualiseSimulationDyn(simdata,staticPlot,viewOnScreen);
+figure(fig);
 
 
 
+%% OLD CODE
+%%
+%%
 %% Initial Step Sim Settings [Dynamic Solver]
 
 simSettings = initialSimSettings(solvers,env);  % local function to initalise settings for step sim
@@ -51,88 +124,7 @@ fig = visualiseSimulationDyn(simdata,staticPlot,viewOnScreen);
 figure(fig);
 
 
-%%
-clearvars fig staticPlot targetPos viewOnScreen
-%% Loop Step Sim Until Done [Dynamic Solver]
-% nmpcSolver = solvers.solverStack(1);
-randSolverIdx = randi(height(solvers.solverN));
-nmpcSolver = solvers.solverStack(randSolverIdx);
-simSettings = initialSimSettings(nmpcSolver,map);  % local function to initalise settings for step sim
-simSettings.loopSteps = 1 /simSettings.DT;      % set number of steps per loop
 
-
-simSettings.normalisedActions = true; % normalised actions flag
-simSettings.realCbfMin  = [0.1 0.01]; % [k1 kr] min real values
-simSettings.realCbfMax  = [100 2.0 ]; % [k1 kr] max real values
-simSettings.cbfParms = rand(map.mpcReqObs,2); % randomise cbf values
-simSettings.randSolverIdx = randSolverIdx;     % choose random index for solver
-simSettings.realN = solvers.solverN(simSettings.randSolverIdx); % random Nvalue from solver set
-simSettings.N = (simSettings.realN - min(solvers.solverN))/(max(solvers.solverN) - min(solvers.solverN)); % random normalised N
-
-
-isDone = false;
-simdata = [];
-allSimdata = [];
-stepRewards = [];
-lastActions.N = simSettings.N;
-lastActions.cbf = simSettings.cbfParms;
-% lastActions.realNrange = [min(solvers.solverN) , max(solvers.solverN)]
-% lastActions.realk1range = abs(diff([simSettings.realCbfMin(1) , simSettings.realCbfMax(1)]));
-% lastActions.realk2range = abs(diff([simSettings.realCbfMin(2) , simSettings.realCbfMax(2)]));  
-
-
-disp("Starting Simulation")
-while ~isDone
-    % run the simulation step
-    simdata = simulationStepDyn(nmpcSolver, simSettings);
-    % log simdata
-    allSimdata = [allSimdata ; simdata ];
-    % calculate rewards for this step
-    stepReward = getStepReward(simdata,lastActions);
-    stepRewards = [stepRewards , stepReward ];
-    % update simSettings for next step
-    
-    simSettings.currentTime = simdata.end_current_time;
-    simSettings.currentState = simdata.end_current_state;
-    simSettings.mpcIter = simdata.mpcIter;
-    simSettings.ctrlHistory = simdata.usafe;
-    simSettings.ssHistory = simdata.sep;
-    simSettings.stateHistory = simdata.states;
-    simSettings.cbfParms(1,:) = rand(); % normalised k1
-    simSettings.cbfParms(2,:) = rand(); % normalised kr
-    % update last actions for next step
-    lastActions.N = simdata.N;
-    lastActions.cbf = simdata.cbf;
-    % check if done
-    isDone = simdata.endAtTarget || simdata.endEpTimeout || simdata.endHitObs;
-    isDone = true;
-    nmpcSolver = solvers.solverStack(randi(height(solvers.solverStack)));
-    [simSettings.X0 simSettings.controlHorizon] = resizeX0newN(simdata.end_X0,nmpcSolver.settings.N, simdata.end_control_horizon);
-    simSettings.normalised.actions = rand(map.mpcReqObs,2)*2 -1; % randomise cbf values
-    fprintf(".");
-end
-
-fprintf("\n  Total Episode Reward : %.2f \n", sum([stepRewards.reward]));
-fprintf("         Progress Reward : %.2f \n", sum([stepRewards.rProgress]));
-fprintf("         Velocity Reward : %.2f \n", sum([stepRewards.rVelocity]));
-fprintf("      Computation Reward : %.2f \n", sum([stepRewards.rComp]));
-fprintf("        Parameter Reward : %.2f \n", sum([stepRewards.rParmStability]));
-fprintf("       Collision Penalty : %.2f \n", sum([stepRewards.rCollision]));
-fprintf("        MPC Time Penalty : %.2f \n", sum([stepRewards.rMPCtimeout]));
-fprintf("    Goal Terminal Reward : %.2f \n", sum([stepRewards.rTermGoal]));
-fprintf("    Time Terminal Reward : %.2f \n", sum([stepRewards.rTermTime]));
-fprintf(" Timeout Terminal Penalty: %.2f \n", sum([stepRewards.rTermEpTimeout]));
-fprintf("\nSimulation of %.2f seconds -> Complete!\n\n",simdata.end_current_time);
-
-%%
-close all; staticPlot= true; viewOnScreen = false;
-fig = visualiseSimulationDyn(simdata,staticPlot,viewOnScreen);
-figure(fig);
-
-
-
-%%
-%%
 
 %% >>> Environment Validation <<<
 if ~exist("agent","var")

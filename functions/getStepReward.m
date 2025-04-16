@@ -8,19 +8,19 @@ function reward = getStepReward(simdata, lastActions)
  rMPCtimeout, rTermGoal, rTermTime, rTermEpTimeout] = deal(0);
 
 %% Safety-Critical Parameters
-COLLISION_PENALTY = -100;      % Absolute penalty dominates all other rewards
-MAX_SAFE_COMP_TIME = 150;       % ms - Threshold for safety-critical computations
+TERMINAL_GOAL_REWARD =  10;  % Unnormalized, outside weights
+COLLISION_PENALTY    = -100;      % Absolute penalty dominates all other rewards
+MAX_SAFE_COMP_TIME   =  150;       % ms - Threshold for safety-critical computations
 PARM_CHANGE_RATE_PENALTY = 0.5;% Penalty weight for rapid parameter changes
 
 %% Step Reward Components (Normalized weights)
 % Weights define priority order: Safety > Progress > Stability > Velocity > Computation
 w = [ 1.0,...  % (1) Progress toward target
-      0.5,...  % (2) Velocity maintenance
-      0.3,...  % (3) Computation efficiency
-      1.5,...  % (4) Parameter stability 
-      8.0,...  % (5) Terminal goal reward
-      3.0 ];   % (6) Terminal time bonus
-sum_weights = sum(w(1:4)) + sum(w(5:6));
+      1.0,...  % (2) Velocity maintenance
+      0.5,...  % (3) Computation efficiency
+      0.5,...  % (4) Parameter stability 
+      3.0 ];   % (5) Terminal time bonus
+sum_weights = sum(w(1:5));
 w = w / sum_weights;
 
 %% [1] Progress Reward: Primary efficiency driver
@@ -79,8 +79,8 @@ if simdata.endHitObs
 end
 
 if simdata.endAtTarget
-    rTermGoal = w(5); 
-    rTermTime = w(6)*(simdata.maxEpTime - simdata.end_current_time)/simdata.maxEpTime;
+    rTermGoal = TERMINAL_GOAL_REWARD * simdata.endAtTarget; 
+    rTermTime = w(5)*(simdata.maxEpTime - simdata.end_current_time)/simdata.maxEpTime;
 end
 
 if simdata.endEpTimeout && ~simdata.endAtTarget
