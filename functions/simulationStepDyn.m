@@ -125,6 +125,7 @@ function simdata = simulationStepDyn(nmpcSolver, settings)
     simdata.maxVel = nmpcSolver.settings.velMax;
     simdata.maxAcc = nmpcSolver.settings.accMax;
     simdata.numSteps = stepCount;
+    simdata.cLevel = settings.cLevel;
 end
 
 

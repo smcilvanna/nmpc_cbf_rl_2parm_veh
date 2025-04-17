@@ -23,7 +23,8 @@ clc; disp("Done");
 %% Setup For Step Simulation Loop [Dynamic Variable N Solver]
 % create environment map
 close all
-map = generateCurriculumEnvironment(3,rand(2,1));
+cLevel = 3;
+map = generateCurriculumEnvironment(cLevel,rand(2,1));
 figure(map.fig);
 ax = findall(map.fig, 'type', 'axes');  % Find all axes in the figure
 axes(ax); axis square; grid on;
@@ -85,6 +86,8 @@ while ~isDone
     lastActions.N = simdata.N;                              % store last N action for reward calculation
     lastActions.cbf = simdata.cbf;                          % store last cbfs for reward calculation
     fprintf(".");
+
+    observations = getObservations(simdata);
 end
 
 % Print Info To Console
@@ -208,6 +211,7 @@ function simSettings = initialSimSettings(solver,env)
     simSettings.simTimeHistory = zeros(simSettings.maxEpSteps,1);
     simSettings.controlHorizon = zeros(simSettings.N,2);
     simSettings.X0 = repmat(simSettings.currentState,1,simSettings.N+1)';
+    simSettings.cLevel = env.cLevel;
     disp("Simulation INITIAL Settings Created");
 end
 
