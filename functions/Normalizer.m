@@ -1,7 +1,7 @@
 classdef Normalizer
     methods (Static)
         %% Normalise to [0 1]
-        function [normalized, minVal, maxVal] = normalize01(data, minVal, maxVal)
+        function [normalized, minVal, maxVal] = normalize01(data, minVal, maxVal, noclamp)
             % NORMALIZE01 Normalize data to [0,1] using explicit min/max ranges
             %   [normalized, minVal, maxVal] = normalize01(data, minVal, maxVal)
             %
@@ -9,6 +9,7 @@ classdef Normalizer
             %   data    - Input array (any numeric type/dimension)
             %   minVal  - Scalar minimum value for normalization
             %   maxVal  - Scalar maximum value for normalization (must be > minVal)
+            %   noclamp - Boolean value to flag not to clamp output, clamped by default
             %
             % Output:
             %   normalized - Data scaled to [0,1] based on minVal/maxVal
@@ -18,6 +19,10 @@ classdef Normalizer
             % Validate inputs
             validateattributes(minVal, {'numeric'}, {'scalar'});
             validateattributes(maxVal, {'numeric'}, {'scalar'});
+
+            if ~exist("noclamp","var")
+                noclamp = false;
+            end
             
             if maxVal <= minVal
                 error('Normalizer:InvalidRange', 'maxVal must be greater than minVal');
@@ -25,6 +30,12 @@ classdef Normalizer
         
             % Preserve input data type and shape
             normalized = (data - minVal) ./ (maxVal - minVal);
+            
+            % clamp values within normalized range unless noclamp=true arg is passed
+            if ~noclamp 
+                normalized = max(0, min(normalized, 1));
+            end
+
         end
         
         %% Denormalise from [0 1]
@@ -34,7 +45,7 @@ classdef Normalizer
         end
         
         %% Normalize to [-1, 1]
-        function [normalized, minVal, maxVal] = normalize11(data, minVal, maxVal)
+        function [normalized, minVal, maxVal] = normalize11(data, minVal, maxVal, noclamp)
             % NORMALIZE11 Normalize data to [-1,1] using explicit min/max ranges
             %   [normalized, minVal, maxVal] = normalize11(data, minVal, maxVal)
             %
@@ -42,6 +53,7 @@ classdef Normalizer
             %   data    - Input array (any numeric type/dimension)
             %   minVal  - Scalar minimum value for normalization
             %   maxVal  - Scalar maximum value for normalization (must be > minVal)
+            %   noclamp - Boolean value to flag not to clamp output, clamped by default
             %
             % Output:
             %   normalized - Data scaled to [-1,1] based on minVal/maxVal
@@ -51,6 +63,10 @@ classdef Normalizer
             % Validate inputs
             validateattributes(minVal, {'numeric'}, {'scalar'});
             validateattributes(maxVal, {'numeric'}, {'scalar'});
+
+            if ~exist("noclamp","var")
+                noclamp = false;
+            end
             
             if maxVal <= minVal
                 error('Normalizer:InvalidRange', 'maxVal must be greater than minVal');
@@ -58,6 +74,11 @@ classdef Normalizer
         
             % Preserve input data type and shape
             normalized = 2 * ((data - minVal) ./ (maxVal - minVal)) - 1;
+            
+            % clamp values within normalized range unless noclamp=true arg is passed
+            if ~noclamp 
+                normalized = max(-1, min(normalized, 1));
+            end
         end
 
         %% Denormalise from [-1 1]
