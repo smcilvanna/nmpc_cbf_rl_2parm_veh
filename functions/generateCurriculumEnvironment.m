@@ -149,6 +149,7 @@ function out = generateCurriculumEnvironment(curriculum_level, targetPosNormal)
     ax.YLim = out.mapLimits.y;
     out.fig = fig;
     out.mpcReqObs = mpcReqObs;
+    out.cLevel = curriculum_level;
 
 end
 
