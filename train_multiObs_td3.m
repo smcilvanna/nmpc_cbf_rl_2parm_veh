@@ -30,10 +30,46 @@ fprintf("%d NMPC solvers created\nN-Min : %d\nN-max: %d\n\n",numel(solverSetting
 %                   Lin/Ang Vel (2)          dist/ang obs (18)[3*6]       prevCompTime(1)       %progress2goal(1)
 %                     prev vels (2)             obs radii (6)
 %               target dist/ang (3)        density curLvl (1)
-obsInfo = rlNumericSpec([34 1], 'LowerLimit', -inf , 'UpperLimit', inf );
-actInfo = rlNumericSpec([2 1], 'LowerLimit', [-inf ; -inf] , 'UpperLimit', [inf ; inf] ); % action(2) is k1/k2 ratio rather than k2 as previous
-env = rlFunctionEnv(obsInfo, actInfo, @(action, loggedSignals) stepFunction(action, loggedSignals, nmpcSolver), @() resetFunction(obsSet));
-disp("RL Environment Created");
+
+%% create solver stack
+import casadi.*
+settings.Nvals = 10:10:100;
+settings.nObs = 6;
+solvers = createSolversMultiObs(settings);
+fprintf("%d NMPC solvers created\nN-Min : %d\nN-max: %d\n\n",numel(settings.Nvals),min(settings.Nvals),max(settings.Nvals)); 
+clearvars settings; 
+
+%% Training environment
+
+% Create curriculum handle object
+curriculum = CurriculumLevel();
+
+% Define Observation Specifications 
+obsInfo = rlNumericSpec([34 1],...
+    'LowerLimit', [-1 -1 -1 -1 0 -1 -1 zeros(1,24) 0 0 0]',...
+    'UpperLimit', [ 1  1  1  1 1  1  1  ones(1,24) 1 1 1]');
+
+% Define Action Specifications (already normalized [0,1])
+actInfo = rlNumericSpec([3 1], 'LowerLimit',0,'UpperLimit',1);
+
+% Anonymous function handles 
+resetEpisode = @() resetFcn(curriculum);
+stepEpisode = @(action, logged) stepFcn(action, logged, solvers, curriculum);
+
+% Create environment
+env = rlFunctionEnv(obsInfo, actInfo, stepEpisode, resetEpisode);
+
+
+%% LOCAL FUNCTIONS
+function [InitialObservation, LoggedSignals] = resetFcn()
+
+
+
+end
+
+
+
+%%
 
 
 
