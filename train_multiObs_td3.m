@@ -52,11 +52,97 @@ stepEpisode = @(action, Info) stepFcn(action, Info, solvers, curriculum);
 
 % Create environment
 env = rlFunctionEnv(obsInfo, actInfo, stepEpisode, resetEpisode);
+disp("Environment Created")
 
+%% TD3 AGENT INITALISATION
+% actor network
+actorLayers = [
+    featureInputLayer(34, 'Name', 'state', 'Normalization', 'none')
+    fullyConnectedLayer(256, 'Name', 'fc1')
+    reluLayer('Name', 'relu1')
+    fullyConnectedLayer(256, 'Name', 'fc2') 
+    reluLayer('Name', 'relu2')
+    fullyConnectedLayer(13, 'Name', 'action')  % Matches action dimension
+    tanhLayer('Name', 'tanh_out')              % Constrain to [-1,1]
+];
 
+actor = rlContinuousDeterministicActor(layerGraph(actorLayers), obsInfo, actInfo);
+disp("Actor Network Created")
+%% critics networks
 
+% State pathway
+statePath = [
+    featureInputLayer(34, 'Name', 'state', 'Normalization', 'none')
+    fullyConnectedLayer(256, 'Name', 'state_fc1')
+    reluLayer('Name', 'state_relu')
+];
 
+% Action pathway  
+actionPath = [
+    featureInputLayer(13, 'Name', 'action', 'Normalization', 'none')
+    fullyConnectedLayer(256, 'Name', 'action_fc1')
+    reluLayer('Name', 'action_relu')
+];
 
+% Common fusion path
+commonPath = [
+    concatenationLayer(1, 2, 'Name', 'concat')
+    reluLayer('Name', 'common_relu')
+    fullyConnectedLayer(256, 'Name', 'common_fc2')
+    reluLayer('Name', 'common_relu2')
+    fullyConnectedLayer(1, 'Name', 'QValue') % Single output
+];
+
+% Assemble critic network
+criticNet = layerGraph(statePath);
+criticNet = addLayers(criticNet, actionPath);
+criticNet = addLayers(criticNet, commonPath);
+
+% Explicit connections
+criticNet = connectLayers(criticNet, 'state_relu', 'concat/in1');
+criticNet = connectLayers(criticNet, 'action_relu', 'concat/in2');
+
+% Create twin critics with verified network
+critic1 = rlQValueFunction(criticNet, obsInfo, actInfo,...
+    'ObservationInputNames','state',...
+    'ActionInputNames','action');
+
+critic2 = rlQValueFunction(criticNet, obsInfo, actInfo,...
+    'ObservationInputNames','state',...
+    'ActionInputNames','action');
+
+% Apply weight perturbation
+params = getLearnableParameters(critic1);
+perturbedParams = cellfun(@(x) x + 0.01*randn(size(x)), params, 'UniformOutput', false);
+critic2 = setLearnableParameters(critic2, perturbedParams);
+disp("Critics Networks Created")
+%% TD3 agent
+agentOpts = rlTD3AgentOptions(...
+    'SampleTime', 1,...
+    'ExperienceBufferLength', 1e6,...
+    'MiniBatchSize', 256,...
+    'DiscountFactor', 0.99,...
+    'TargetSmoothFactor', 0.005,...
+    'TargetUpdateFrequency', 2,...
+    'ActorOptimizerOptions', rlOptimizerOptions('LearnRate',1e-4),...
+    'CriticOptimizerOptions', rlOptimizerOptions('LearnRate',1e-3));
+
+agentOpts.ExplorationModel.StandardDeviation = 0.1*ones(13,1);
+agentOpts.ExplorationModel.StandardDeviationDecayRate = 1e-5;
+
+agent = rlTD3Agent(actor, [critic1 critic2], agentOpts);
+disp("New TD3 Agent Created")
+%% Traning Options
+trainOpts = rlTrainingOptions(...
+    'MaxEpisodes', 8000,...
+    'MaxStepsPerEpisode', 30,...     % 150s total / 5s steps
+    'ScoreAveragingWindowLength', 50,...
+    'StopTrainingCriteria', 'None',...
+    'UseParallel', false,...
+    'Verbose', true,...
+    'Plots', 'training-progress');
+
+disp("Training Options Set")
 
 %% LOCAL FUNCTIONS
 
@@ -109,7 +195,16 @@ function [nextObs, reward, isDone, Info] = stepFcn(action, Info, solvers, curric
     
     % Check termination and update curriculum
     if isDone
-        curriculum.episodeCount = curriculum.episodeCount + 1;
+            % Update curriculum only on successful episodes
+        if Info.simdata.endAtTarget
+            curriculum.episodeCount = curriculum.episodeCount + 1;
+            % Increase level after number of successes at current difficulty
+            if mod(curriculum.episodeCount, 200) == 0
+                curriculum.level = min(curriculum.level + 1, 5);
+                % curriculum.episodeCount = 0; % Reset counter for new level
+                fprintf("[TRAIN-INFO] Curriculum Level [%d]\n",curriculum.level)
+            end
+        end
     end
     
     % Get observations for this step
