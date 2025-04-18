@@ -27,7 +27,7 @@ clc; disp("Done");
 
 %% create solver stack
 import casadi.*
-settings.Nvals = 10:10:100;
+settings.Nvals = 10:10:30;
 settings.nObs = 6;
 solvers = createSolversMultiObs(settings);
 fprintf("%d NMPC solvers created\nN-Min : %d\nN-max: %d\n\n",numel(settings.Nvals),min(settings.Nvals),max(settings.Nvals)); 
@@ -54,11 +54,13 @@ stepEpisode = @(action, Info) stepFcn(action, Info, solvers, curriculum);
 env = rlFunctionEnv(obsInfo, actInfo, stepEpisode, resetEpisode);
 
 %%
-% c.level = 3;
-% resetFcn(c)
-
+c.level = 3;
+[iobs, info] = resetFcn(c)
+simdata = info.simdata;
 
 %% LOCAL FUNCTIONS
+
+%% RESET FUNCTION
 
 function [InitialObservation, Info] = resetFcn(curriculum)
 %%RESETFN : reset scenario for new episode
@@ -75,43 +77,34 @@ end
 function simdata = initSimdata(map)
 %%INITSIMDATA :  Return simdata to generate observations from intial random map environment
     simdata = struct;
-    stepTime = 5; % seconds per episode step
-    simdata.DT = 0.1;       % HARDCODED value!
-    simdata.loopSteps = stepTime/simdata.DT;
-    simdata.maxSimTime = 150;
-    simdata.maxEpSteps = simdata.maxSimTime / simdata.DT;
-    simdata.endSepTol = 0.1;
-    simdata.currentState = [0.0, 0.0, deg2rad(45), 0, 0]';
     simdata.obstacles = map.obstacles;
     simdata.target = [ map.targetPos , deg2rad(45) , 0, 0 ]';
-    simdata.currentTime = 0.00;
-    simdata.mpcIter = 0;
-    simdata.ctrlHistory = NaN(simdata.maxEpSteps,2);
-    simdata.ssHistory = NaN(simdata.maxEpSteps,1);
-    simdata.stateHistory = NaN(5,simdata.maxEpSteps);
-    simdata.stateHistory(:,1) = simdata.currentState';
-    simdata.simTimeHistory = zeros(simdata.maxEpSteps,1);
     simdata.cLevel = map.cLevel;
     simdata.vrad = 0.55;    % HARDCODED value!
-    simdata.end_current_state = [0 , 0 , deg2rad(0.45) , 0 , 0 ];
-    simdata.mpcIter = 1;
-    simdata.numSteps = 1;
+    simdata.end_current_state = [0 , 0 , deg2rad(45) , 0 , 0 ];
+    simdata.mpcIter = 0;
+    simdata.numSteps = 0;
     simdata.states = [0 , 0 , deg2rad(0.45) , 0 , 0 ]';
     simdata.average_mpc_time = 0;   % HARDCODED value!
-
-    
+    simdata.usafe = 
 end
 
-%%
+%% STEP FUNCTION
 function [nextObs, reward, isDone, Info] = stepFcn(action, Info, solvers, curriculum)
+    
+
+    solverIdx = Normalizer.denormalize01(action(13),1,numel(solvers.solverN));     % get solver index from rl-action
+    nmpcSolver = solvers.solverStack(solverIdx);                        % select solver for this step from action
     
     simSettings = initStep(action,Info,solvers);
     
+    
 
-    [newState, simData] = runMPCStep(Info.simdata, action);
     
     % Update logged signals
     Info.simdata = simData;
+
+    isDone = simdata.endAtTarget || simdata.endEpTimeout || simdata.endHitObs;
     
     % Check termination and update curriculum
     if isDone
@@ -126,27 +119,59 @@ function [nextObs, reward, isDone, Info] = stepFcn(action, Info, solvers, curric
 end
 
 
-function [simSettings nmpcSolver lastActions] = initStep(action,Info,solvers)
+function [simSettings lastActions] = initStep(action,simdata,solverSettings,map)
     
-
-    simSettings.solverIdx = Normalizer.denormalize01(action(13),1,numel(nSet));     % get solver index from rl-action
-    nmpcSolver = solvers.solverStack(simSettings.solverIdx);                        % return solver struct for rl-action N
-    simSettings = initialSimSettings(nmpcSolver,map);   % local function to initalise settings for step sim
-    simSettings.loopSteps = stepTime /simSettings.DT;   % set number of steps per loop
-    simSettings.normalisedActions = true;               % enable normalised actions flag
-    simSettings.realCbfMin  = [0.1 0.01];               % [k1 kr] min real values
-    simSettings.realCbfMax  = [100 2.0 ];               % [k1 kr] max real values
+    epStepTime = 5; % seconds per episode step
+    epMaxTime = 150; % seconds per episode (timeout)
     
-    simSettings.cbfParms = rand(map.mpcReqObs,2);       % randomise cbf values
-    simSettings.realN = solvers.solverN(simSettings.randSolverIdx); % random Nvalue from solver set
-    lastActions.N = simSettings.N;              % init last actions to current actions for reward calculation
-    lastActions.cbf = simSettings.cbfParms;
-
-
+    simSettings.cbfParms = reshape(action(1:12) ,6,2 );     % cbf actions into array
+    simSettings.N = solverSettings.N;
+    simSettings.DT = solverSettings.DT;
+    simSettings.veh_rad = solverSettings.veh_rad;
+    simSettings.loopSteps = epStepTime / simSettings.DT;
+    simSettings.maxSimTime = epMaxTime;
+    simSettings.maxEpSteps = simSettings.maxSimTime / simSettings.DT;
+    simSettings.endSepTol = 0.1;
+    simSettings.currentState = simdata.end_current_state;
+    simSettings.obstacles = map.obstacles;
+    simSettings.target = [ map.targetPos , deg2rad(45) , 0, 0 ]';
+    simSettings.currentTime = simdata.end_current_time;
+    simSettings.mpcIter = simdata.mpcIter;
+    simSettings.cLevel = env.cLevel;
+    if simSettings.mpcIter == 0
+        simSettings.ctrlHistory = NaN(simSettings.maxEpSteps,2);
+        simSettings.ssHistory = NaN(simSettings.maxEpSteps,1);
+        simSettings.stateHistory = NaN(5,simSettings.maxEpSteps);
+        simSettings.stateHistory(:,1) = simSettings.currentState';
+        simSettings.simTimeHistory = zeros(simSettings.maxEpSteps,1);
         simSettings.controlHorizon = zeros(simSettings.N,2);
-    simSettings.X0 = repmat(simSettings.currentState,1,simSettings.N+1)';
+        simSettings.X0 = repmat(simSettings.currentState,1,simSettings.N+1)';
+    else
+        simSettings.ctrlHistory = simdata.usafe;
+        simSettings.ssHistory = simdata.sep;
+        simSettings.stateHistory = simdata.states;
+        simSettings.simTimeHistory = zeros(simSettings.maxEpSteps,1);
+        [simSettings.X0, simSettings.controlHorizon] = resizeX0newN(simdata.end_X0,...
+                                                                    simSettings.N,...
+                                                                    simdata.end_control_horizon); % reshape mpc arrays for new horizon
+    end
+
 end
 
+
+function [X0 , controlHorizon] = resizeX0newN(lastX0,N,lastCH)
+%RESIZEX0NEWN : for changing horizon length need to update size of state and control arrays for mpc sovler
+%
+    lastN = height(lastX0)-1;   % find horizon length of last step
+    if N <= lastN               % if new N is smaller take subset of arrays
+        X0 = lastX0(1:N+1,:);
+        controlHorizon = lastCH(1:N,:);
+    else                        % if new N is larger, expand array using last iteration values
+        extraRows = N-lastN;
+        X0 = [lastX0; repmat(lastX0(end,:),extraRows,1)];
+        controlHorizon = [lastCH ; repmat(lastCH(end,:),extraRows,1)];
+    end
+end
 
 
 

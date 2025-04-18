@@ -154,6 +154,9 @@ function mapLimits = getMapLimits(obstacles,curriculum_level,target)
         ylims = zeros(height(obstacles),2);
     
         for i = 1:height(xlims)
+            if obstacles(i,1) > 120
+                break
+            end
             xlims(i,:) = [ (obstacles(i,1) - obstacles(i,3)) , (obstacles(i,1) + obstacles(i,3)) ];
             ylims(i,:) = [ (obstacles(i,2) - obstacles(i,3)) , (obstacles(i,2) + obstacles(i,3)) ];
         end

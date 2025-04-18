@@ -23,14 +23,14 @@ clc; disp("Done");
 %% Setup For Step Simulation Loop [Dynamic Variable N Solver]
 % create environment map
 close all
-cLevel = 5;
+cLevel = 4;
 map = generateCurriculumEnvironment(cLevel,true);
 figure(map.fig);
 ax = findall(map.fig, 'type', 'axes');  % Find all axes in the figure
 axes(ax); axis square; grid on;
 %% create solver stack
 import casadi.*
-settings.Nvals = 10:15:100;
+settings.Nvals = 10:20:100;
 settings.nObs = map.mpcReqObs;
 solvers = createSolversMultiObs(settings);
 fprintf("%d NMPC solvers created\nN-Min : %d\nN-max: %d\n\n",numel(settings.Nvals),min(settings.Nvals),max(settings.Nvals)); 
@@ -217,7 +217,6 @@ end
 
 function [X0 , controlHorizon] = resizeX0newN(lastX0,N,lastCH)
     lastN = height(lastX0)-1;
-
     if N <= lastN
         X0 = lastX0(1:N+1,:);
         controlHorizon = lastCH(1:N,:);
@@ -226,5 +225,4 @@ function [X0 , controlHorizon] = resizeX0newN(lastX0,N,lastCH)
         X0 = [lastX0; repmat(lastX0(end,:),extraRows,1)];
         controlHorizon = [lastCH ; repmat(lastCH(end,:),extraRows,1)];
     end
-
 end
