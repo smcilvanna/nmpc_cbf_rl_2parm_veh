@@ -43,48 +43,109 @@ obsInfo = rlNumericSpec([34 1],...
     'LowerLimit', [-1 -1 -1 -1 0 -1 -1 zeros(1,24) 0 0 0]',...
     'UpperLimit', [ 1  1  1  1 1  1  1  ones(1,24) 1 1 1]');
 
-% Define Action Specifications (already normalized [0,1])
-actInfo = rlNumericSpec([3 1], 'LowerLimit',0,'UpperLimit',1);
+% Define Action Specifications 6*2 cbf parameters (for 6 obstacles) + 1 horizonN value
+actInfo = rlNumericSpec([13 1], 'LowerLimit',0,'UpperLimit',1);
 
 % Anonymous function handles 
 resetEpisode = @() resetFcn(curriculum);
-stepEpisode = @(action, logged) stepFcn(action, logged, solvers, curriculum);
+stepEpisode = @(action, Info) stepFcn(action, Info, solvers, curriculum);
 
 % Create environment
 env = rlFunctionEnv(obsInfo, actInfo, stepEpisode, resetEpisode);
 
 %%
 
-
+    map = generateCurriculumEnvironment(3, false);   % generate random environment
+    simdata = initSimdata(map);                                 % create simdata for random environment
+    InitialObservation = getObservations(simdata);              % get the intitial observations
+    Info = struct('map',map,'simdata',simdata);
 
 %% LOCAL FUNCTIONS
 
-function [InitialObservation, InitialInfo] = resetFcn(curriculum)
+function [InitialObservation, Info] = resetFcn(curriculum)
 %%RESETFN : reset scenario for new episode
 %               - Create a new environment map based on current curriculum level
 %               - Return the initial set of observations to RL-agent
 
     map = generateCurriculumEnvironment(curriculum.level, false);   % generate random environment
-    initSimdata = initSimdata(map);                                 % create simdata for random environment
-    InitialObservation = getObservations(initSimdata);              % get the intitial observations
-    InitialInfo = struct('map',map);
+    simdata = initSimdata(map);                                 % create simdata for random environment
+    InitialObservation = getObservations(simdata);              % get the intitial observations
+    Info = struct('map',map,'simdata',simdata);
 
 end
 
 function simdata = initSimdata(map)
 %%INITSIMDATA :  Return simdata to generate observations from intial random map environment
     simdata = struct;
+    stepTime = 5; % seconds per episode step
+    simdata.DT = 0.1;       % HARDCODED value!
+    simdata.loopSteps = stepTime/simdata.DT;
+    simdata.maxSimTime = 150;
+    simdata.maxEpSteps = simdata.maxSimTime / simdata.DT;
+    simdata.endSepTol = 0.1;
+    simdata.currentState = [0.0, 0.0, deg2rad(45), 0, 0]';
+    simdata.obstacles = map.obstacles;
+    simdata.target = [ map.targetPos , deg2rad(45) , 0, 0 ]';
+    simdata.currentTime = 0.00;
+    simdata.mpcIter = 0;
+    simdata.ctrlHistory = NaN(simdata.maxEpSteps,2);
+    simdata.ssHistory = NaN(simdata.maxEpSteps,1);
+    simdata.stateHistory = NaN(5,simdata.maxEpSteps);
+    simdata.stateHistory(:,1) = simdata.currentState';
+    simdata.simTimeHistory = zeros(simdata.maxEpSteps,1);
+    simdata.cLevel = map.cLevel;
     simdata.vrad = 0.55;    % HARDCODED value!
     simdata.end_current_state = [0 , 0 , deg2rad(0.45) , 0 , 0 ];
     simdata.mpcIter = 1;
     simdata.numSteps = 1;
     simdata.states = [0 , 0 , deg2rad(0.45) , 0 , 0 ]';
-    simdata.target = map.targetPos;
-    simdata.obstacles = map.obstacles;
-    simdata.cLevel = map.cLevel;
     simdata.average_mpc_time = 0;   % HARDCODED value!
 end
 
+%%
+function [nextObs, reward, isDone, Info] = stepFcn(action, Info, solvers, curriculum)
+    
+    simSettings = initStep(action,solvers);
+    
+
+    [newState, simData] = runMPCStep(Info.simdata, action);
+    
+    % Update logged signals
+    Info.simdata = simData;
+    
+    % Check termination and update curriculum
+    if isDone
+        curriculum.episodeCount = curriculum.episodeCount + 1;
+        updateCurriculum(curriculum); % Your curriculum update logic
+    end
+    
+    % Generate next observation
+    nextObs = getObservations(Info.simdata);
+    reward = calculateReward(simData);
+    isDone = checkTermination(simData);
+end
+
+
+function [simSettings nmpcSolver lastActions] = initStep(action,solvers)
+    
+    stepTime = 5; % seconds : how long the episode step runs for
+    simSettings.solverIdx = Normalizer.denormalize01(action(13),1,numel(nSet));     % get solver index from rl-action
+    nmpcSolver = solvers.solverStack(simSettings.solverIdx);                        % return solver struct for rl-action N
+    simSettings = initialSimSettings(nmpcSolver,map);   % local function to initalise settings for step sim
+    simSettings.loopSteps = stepTime /simSettings.DT;   % set number of steps per loop
+    simSettings.normalisedActions = true;               % enable normalised actions flag
+    simSettings.realCbfMin  = [0.1 0.01];               % [k1 kr] min real values
+    simSettings.realCbfMax  = [100 2.0 ];               % [k1 kr] max real values
+    
+    simSettings.cbfParms = rand(map.mpcReqObs,2);       % randomise cbf values
+    simSettings.realN = solvers.solverN(simSettings.randSolverIdx); % random Nvalue from solver set
+    lastActions.N = simSettings.N;              % init last actions to current actions for reward calculation
+    lastActions.cbf = simSettings.cbfParms;
+
+
+        simSettings.controlHorizon = zeros(simSettings.N,2);
+    simSettings.X0 = repmat(simSettings.currentState,1,simSettings.N+1)';
+end
 
 
 
