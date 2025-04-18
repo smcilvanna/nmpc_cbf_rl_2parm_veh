@@ -14,12 +14,6 @@ addpath("functions\");
 addpath("C:\Users\14244039\AppData\Roaming\MathWorks\MATLAB Add-Ons\Collections\casadi-3.7.0-windows64-matlab2018b");
 clc; disp("Done");
 
-%% Create the solver stack
-import casadi.*
-solverSettings.Nvals = 10:20:100;                  % values for solvers in stack
-solverSettings.nObs = 6;
-solvers = createSolversMultiObs(solverSettings);
-fprintf("%d NMPC solvers created\nN-Min : %d\nN-max: %d\n\n",numel(solverSettings.Nvals),min(solverSettings.Nvals),max(solverSettings.Nvals)); 
 
 %% Setup Environment For NMPC-CBF 2 parameter training
 % This environment will train to learn the optimal NMPC-CBF controller CBF parameters (2) and Horizon-N length.
@@ -61,15 +55,27 @@ env = rlFunctionEnv(obsInfo, actInfo, stepEpisode, resetEpisode);
 
 
 %% LOCAL FUNCTIONS
-function [InitialObservation, LoggedSignals] = resetFcn()
 
+
+function [InitialObservation, InitialInfo] = resetFcn(curriculum)
+%%RESETFN : reset scenario for new episode
+%               - Create a new environment map based on current curriculum lelve
+%               - Return the initial set of observations to RL-agent
+
+    map = generateCurriculumEnvironment(curriculum.level, false);
+
+
+
+    InitialObservation = getResetInitObs(map);
+
+    InitialInfo = struct('map',map);
 
 
 end
 
 
 
-%%
+%% 
 
 
 
