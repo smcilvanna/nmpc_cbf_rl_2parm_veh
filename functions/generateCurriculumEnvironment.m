@@ -1,5 +1,6 @@
 function out = generateCurriculumEnvironment(curriculum_level,genFig)
 % GENERATERANDOMENVIRONMENT with curriculum support
+%
 
     % check for figure generation flag, default to no figure generation
     if ~exist("genFig","var") || ~ islogical(genFig)
