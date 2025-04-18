@@ -53,31 +53,37 @@ stepEpisode = @(action, logged) stepFcn(action, logged, solvers, curriculum);
 % Create environment
 env = rlFunctionEnv(obsInfo, actInfo, stepEpisode, resetEpisode);
 
+%%
+
+
 
 %% LOCAL FUNCTIONS
 
-
 function [InitialObservation, InitialInfo] = resetFcn(curriculum)
 %%RESETFN : reset scenario for new episode
-%               - Create a new environment map based on current curriculum lelve
+%               - Create a new environment map based on current curriculum level
 %               - Return the initial set of observations to RL-agent
 
-    map = generateCurriculumEnvironment(curriculum.level, false);
-
-
-
-    InitialObservation = getResetInitObs(map);
-
+    map = generateCurriculumEnvironment(curriculum.level, false);   % generate random environment
+    initSimdata = initSimdata(map);                                 % create simdata for random environment
+    InitialObservation = getObservations(initSimdata);              % get the intitial observations
     InitialInfo = struct('map',map);
-
 
 end
 
-
-
-%% 
-
-
+function simdata = initSimdata(map)
+%%INITSIMDATA :  Return simdata to generate observations from intial random map environment
+    simdata = struct;
+    simdata.vrad = 0.55;    % HARDCODED value!
+    simdata.end_current_state = [0 , 0 , deg2rad(0.45) , 0 , 0 ];
+    simdata.mpcIter = 1;
+    simdata.numSteps = 1;
+    simdata.states = [0 , 0 , deg2rad(0.45) , 0 , 0 ]';
+    simdata.target = map.targetPos;
+    simdata.obstacles = map.obstacles;
+    simdata.cLevel = map.cLevel;
+    simdata.average_mpc_time = 0;   % HARDCODED value!
+end
 
 
 

@@ -1,12 +1,5 @@
-function out = getObservations(simdata,resetFlag)
+function out = getObservations(simdata)
 %GETNORMALISEDOBSERVATIONS Assemble the observations vector from simdata, return normalised observations
-    % 
-    % if ~exist("resetFlag","var")
-    %     resetFlag = false;
-    % end
-    % if ~islogical(resetFlag)
-    %     error("Reset flag is boolean arg");
-    % end
     
     % Observations = [ Vehicle State(7) ; Obstacle-Information(25)       ; MPC-Information(1) ; Target-Information(1) ]
     %                   Lin/Ang Vel (2)          dist/ang obs (18)[3*6]       prevCompTime(1)       %progress2goal(1)
@@ -51,52 +44,52 @@ function out = getObservations(simdata,resetFlag)
     % (33) Previous MPC Time (ms)            [0 200]         [0 1]
     % (34) % Progress to goal                [0 1 ]          [0 1]
 
-    if ~resetFlag   % return step observations
-        vrad = simdata.vrad;
-        vehxy = simdata.end_current_state(1:2);
-        obvs = zeros(34,1);
-        obvs(1) = simdata.end_current_state(4);                             %  (1) Current Linear Velocity   
-        obvs(2) = simdata.end_current_state(5);                             %  (2) Current Angular Velicity  
-        obvs(3) = simdata.states(4,(simdata.mpcIter-simdata.numSteps +1));  %  (3) Last Linear Velocity      
-        obvs(4) = simdata.states(5,(simdata.mpcIter-simdata.numSteps +1));  %  (4) Last Angular Velocity               
-        obvs(5) = norm( vehxy' - simdata.target(1:2));                       %  (5) Target Distance                     
-        obvs(6) = getTargetDirAngles(vehxy,simdata.target(1:2),"sin");      %  (6) sin(target_angle)                   
-        obvs(7) = getTargetDirAngles(vehxy,simdata.target(1:2),"cos");      %  (7) cos(target_angle)                   
-        for i = 1:height(simdata.obstacles)
-            o = (i-1)*4;                            % Loop for obstacle observations
-            obxy = simdata.obstacles(i,1:2);
-            obvs(11+o)= simdata.obstacles(i,3);                             % (11) Obs radius
-            obvs(8+o) = norm( vehxy - obxy ) - vrad - obvs(11+o);           %  (8) Obs distance                       
-            obvs(9+o) = getTargetDirAngles(vehxy,obxy,"sin");               %  (9) Obs sin(angle)                     
-            obvs(10+o)= getTargetDirAngles(vehxy,obxy,"cos");               % (10) Obs cos(angle)                                           
-        end % (obs31) - for 6 obstacles                        
-        obvs(32)= simdata.cLevel;                                           % (32) Curriculum Level                    
-        obvs(33)= simdata.average_mpc_time*1000;                            % (33) Previous MPC Time (ms)   
-        startTgtDist = norm(simdata.target(1:2));
-        obvs(34)= (startTgtDist - obvs(5))/startTgtDist;                    % (34) Progress to goal                          
-        obvs(34) = max(0,min(obvs(34),1)); % clamp value
-    
-        % normalise observations
-        nobvs = zeros(size(obvs));            % init empty array               Real Limits     Normalised Limits
-        nobvs(1) = Normalizer.normalize11(obvs(1),-2, 2 );                     % [-2 2]          [-1 1]
-        nobvs(2) = Normalizer.normalize11(obvs(2),-1, 1 );                     % [-1 1]          [-1 1]
-        nobvs(3) = Normalizer.normalize11(obvs(3),-1, 1 );                     % [-1 1]          [-1 1]     
-        nobvs(4) = Normalizer.normalize11(obvs(4),-2, 2 );                     % [-2 2]          [-1 1]      
-        nobvs(5) = Normalizer.normalize01(obvs(5), 0, 100 );                   % [ 0 100]        [ 0 1]      
-        nobvs(6) = obvs(6);                                                    % [-1 1]          [-1 1]      
-        nobvs(7) = obvs(7);                                                    % [-1 1]          [-1 1]
-        for i = 1:height(simdata.obstacles)
-            o = (i-1)*4;                            % Loop for obstacle observations
-            nobvs(8+o) = Normalizer.normalize01(obvs(8+o),0,100);              % [0 100]         [ 0 1]
-            nobvs(9+o) = obvs(9+o);                                            % [-1 1]          [-1 1]                           
-            nobvs(10+o)= obvs(10+o);                                           % [-1 1]          [-1 1]                           
-            nobvs(11+o)= Normalizer.normalize01(obvs(11+o),0.1,10);            % [0.1 10]        [ 0 1]                           
-        end % (obs31) - for 6 obstacles                        
-        nobvs(32)= Normalizer.normalize01(obvs(32),1,5);                       % [1 5]           [0 1]
-        nobvs(33)= Normalizer.normalize01(obvs(33),0,200);                     % [0 200]         [0 1]
-        nobvs(34)= obvs(34);                                                   % [0 1 ]          [0 1]
-    
-        out = nobvs;   
+
+    vrad = simdata.vrad;
+    vehxy = simdata.end_current_state(1:2);
+    obvs = zeros(34,1);
+    obvs(1) = simdata.end_current_state(4);                             %  (1) Current Linear Velocity   
+    obvs(2) = simdata.end_current_state(5);                             %  (2) Current Angular Velicity  
+    obvs(3) = simdata.states(4,(simdata.mpcIter-simdata.numSteps +1));  %  (3) Last Linear Velocity      
+    obvs(4) = simdata.states(5,(simdata.mpcIter-simdata.numSteps +1));  %  (4) Last Angular Velocity               
+    obvs(5) = norm( vehxy' - simdata.target(1:2));                       %  (5) Target Distance                     
+    obvs(6) = getTargetDirAngles(vehxy,simdata.target(1:2),"sin");      %  (6) sin(target_angle)                   
+    obvs(7) = getTargetDirAngles(vehxy,simdata.target(1:2),"cos");      %  (7) cos(target_angle)                   
+    for i = 1:height(simdata.obstacles)
+        o = (i-1)*4;                            % Loop for obstacle observations
+        obxy = simdata.obstacles(i,1:2);
+        obvs(11+o)= simdata.obstacles(i,3);                             % (11) Obs radius
+        obvs(8+o) = norm( vehxy - obxy ) - vrad - obvs(11+o);           %  (8) Obs distance                       
+        obvs(9+o) = getTargetDirAngles(vehxy,obxy,"sin");               %  (9) Obs sin(angle)                     
+        obvs(10+o)= getTargetDirAngles(vehxy,obxy,"cos");               % (10) Obs cos(angle)                                           
+    end % (obs31) - for 6 obstacles                        
+    obvs(32)= simdata.cLevel;                                           % (32) Curriculum Level                    
+    obvs(33)= simdata.average_mpc_time*1000;                            % (33) Previous MPC Time (ms)   
+    startTgtDist = norm(simdata.target(1:2));
+    obvs(34)= (startTgtDist - obvs(5))/startTgtDist;                    % (34) Progress to goal                          
+    obvs(34) = max(0,min(obvs(34),1)); % clamp value
+
+    % normalise observations
+    nobvs = zeros(size(obvs));            % init empty array               Real Limits     Normalised Limits
+    nobvs(1) = Normalizer.normalize11(obvs(1),-2, 2 );                     % [-2 2]          [-1 1]
+    nobvs(2) = Normalizer.normalize11(obvs(2),-1, 1 );                     % [-1 1]          [-1 1]
+    nobvs(3) = Normalizer.normalize11(obvs(3),-1, 1 );                     % [-1 1]          [-1 1]     
+    nobvs(4) = Normalizer.normalize11(obvs(4),-2, 2 );                     % [-2 2]          [-1 1]      
+    nobvs(5) = Normalizer.normalize01(obvs(5), 0, 100 );                   % [ 0 100]        [ 0 1]      
+    nobvs(6) = obvs(6);                                                    % [-1 1]          [-1 1]      
+    nobvs(7) = obvs(7);                                                    % [-1 1]          [-1 1]
+    for i = 1:height(simdata.obstacles)
+        o = (i-1)*4;                            % Loop for obstacle observations
+        nobvs(8+o) = Normalizer.normalize01(obvs(8+o),0,100);              % [0 100]         [ 0 1]
+        nobvs(9+o) = obvs(9+o);                                            % [-1 1]          [-1 1]                           
+        nobvs(10+o)= obvs(10+o);                                           % [-1 1]          [-1 1]                           
+        nobvs(11+o)= Normalizer.normalize01(obvs(11+o),0.1,10);            % [0.1 10]        [ 0 1]                           
+    end % (obs31) - for 6 obstacles                        
+    nobvs(32)= Normalizer.normalize01(obvs(32),1,5);                       % [1 5]           [0 1]
+    nobvs(33)= Normalizer.normalize01(obvs(33),0,200);                     % [0 200]         [0 1]
+    nobvs(34)= obvs(34);                                                   % [0 1 ]          [0 1]
+
+    out = nobvs;   
 
 end
 
