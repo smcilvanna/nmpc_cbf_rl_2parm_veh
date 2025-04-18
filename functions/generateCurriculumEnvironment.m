@@ -1,5 +1,11 @@
-function out = generateCurriculumEnvironment(curriculum_level, targetPosNormal)
+function out = generateCurriculumEnvironment(curriculum_level,genFig)
 % GENERATERANDOMENVIRONMENT with curriculum support
+
+    % check for figure generation flag, default to no figure generation
+    if ~exist("genFig","var") || ~ islogical(genFig)
+        genFig = false;
+    end
+
     % ===== Curriculum Presets =====
     switch curriculum_level
         case 1 % Very-low (no obstacles)
@@ -35,29 +41,24 @@ function out = generateCurriculumEnvironment(curriculum_level, targetPosNormal)
             targetPathObs = 3;
     end
 
-
-    mpcReqObs = 6;
-    veh_rad = 1.0;
-    radii_set = 0.5:0.5:10;
-    out = struct;
-    out.obsInPath = -1;
+    targetPosNormal = rand(2,1);    % randomise target positions
+    mpcReqObs = 6;                  % number of obstacles to return, number in area determined by cLevel
+    veh_rad = 1.0;                  % enlarged vehicle radius to keep obstacles from start and finish points
+    radii_set = 0.1:0.1:10;         % set of allowable obstacle radii
+    out = struct;                   
+    out.obsInPath = -1;             % count number of obstacles directly between start and target
+    c5cnt = 0;                  % counter to indicate cirruculum 5 generation is taking too long, use far corner target if so
     
     while ~(out.obsInPath >= targetPathObs)
 
-        targetPos = [grid_size, grid_size];
-        targetPos(randi(2)) = targetPosNormal(randi(2)) * grid_size;
-        circles = zeros(num_circles+2, 3);
+        targetPos = [grid_size, grid_size];                             % set target positions to far corner of grid 
+        if c5cnt < 2000
+            targetPos(randi(2)) = targetPosNormal(randi(2)) * grid_size;    % randomise one of the positions within the grid extents
+        end
+        circles = zeros(num_circles+2, 3);              % empty array for random circular obstacles
         circles(1,:) = [0 0 veh_rad];                   % add a temp circle for the vehicle at start pos
         circles(2,:) = [ targetPos(:).' , veh_rad ];    % add a temp circle for the vehicle at target pos
         current_count = 0;
-    
-        % % Handle radius selection mode
-        % if nargin < 4 || isempty(radii_set)
-        %     use_continuous = true;
-        % else
-        %     use_continuous = false;
-        %     validateattributes(radii_set, {'numeric'}, {'vector', '>=', 0.1, '<=', 10});
-        % end
         
         % Place circles with collision checking
         while current_count < num_circles
@@ -80,13 +81,6 @@ function out = generateCurriculumEnvironment(curriculum_level, targetPosNormal)
                     break;
                 end
 
-                % if curriculum_level == 5 
-                %     max_required = radius + existing(3) + max_spacing;
-                %     if distance > max_required                 
-                %         valid = false;
-                %         break;
-                %     end
-                % end
             end
             
             % Add valid circle
@@ -115,47 +109,44 @@ function out = generateCurriculumEnvironment(curriculum_level, targetPosNormal)
         end
         
         while height(out.obstacles) < mpcReqObs
-            % if we dont have enough obstacles add dummy values for cbf
-            if height(out.obstacles) == 0
-                out.obstacles = repmat([200,200,0.01],mpcReqObs-1,1);
-            end
-
-
-            out.obstacles(end+1,:) = [out.obstacles(2,1) , out.obstacles(2,2) , 0.01 ];
+            % fill "no-obstacle" slots with far away small obstacles, RL should learn to ignore
+            out.obstacles(end+1,:) = [500 , 500 , 0.1 ];
         end
 
         if curriculum_level == 5 && coverage < 60
             out.obsInPath = -1;
-            % grid_size = grid_size + 2;
+            c5cnt = c5cnt + 1;
+            % could have set of pre-created cLevel 5 maps to choose from if count exceeded
         end
     
     end
 
-    fig = figure(Visible="off");
-    ax = axes(fig);
-    hold on;
-    for i = 3:height(circles)
-        plotCircle([circles(i,1), circles(i,2)],circles(i,3),'-','r');
-    end
-    scatter(targetPos(1),targetPos(2),100,"green",'x'); % mark target position
-
-    % axLim = max(grid_size, max(targetPos));   % want to make the plot full extents of either the grid or the target position
-
     % put output elements into struct
     out.coverage = coverage;
     out.targetPos = targetPos;
-    out.mapLimits = getMapLimits(out.obstacles, curriculum_level);
-    ax.XLim = out.mapLimits.x;
-    ax.YLim = out.mapLimits.y;
-    out.fig = fig;
+    out.mapLimits = getMapLimits(out.obstacles, curriculum_level,targetPos);
     out.mpcReqObs = mpcReqObs;
     out.cLevel = curriculum_level;
+
+    % put optional figure object into output struct if requested
+    if genFig
+        fig = figure(Visible="off");
+        ax = axes(fig);
+        hold on;
+        for i = 3:height(circles)
+            plotCircle([circles(i,1), circles(i,2)],circles(i,3),'-','r');
+        end
+        scatter(targetPos(1),targetPos(2),100,"green",'x'); % mark target position
+        ax.XLim = out.mapLimits.x;
+        ax.YLim = out.mapLimits.y;
+        out.fig = fig;
+    end
 
 end
 
 %% LOCAL FUNCTIONS
 
-function mapLimits = getMapLimits(obstacles,curriculum_level)
+function mapLimits = getMapLimits(obstacles,curriculum_level,target)
     if curriculum_level ~= 1
     
         xlims = zeros(height(obstacles),2);
@@ -171,6 +162,15 @@ function mapLimits = getMapLimits(obstacles,curriculum_level)
         mapLimits.x = [ 0 50 ];
         mapLimits.y = [ 0 50 ];
     end
+    
+    % extend limits if they dont reach the target point on positive x/y axes
+    if mapLimits.x(2) < target(1)
+        mapLimits.x(2) = target(1);
+    end
+    if mapLimits.y(2) < target(2)
+        mapLimits.y(2) = target(2);
+    end
+
 end
 
 
