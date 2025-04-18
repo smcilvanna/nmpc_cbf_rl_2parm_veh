@@ -27,7 +27,7 @@ clc; disp("Done");
 
 %% create solver stack
 import casadi.*
-settings.Nvals = 10:10:30;
+settings.Nvals = 10:10:100;
 settings.nObs = 6;
 solvers = createSolversMultiObs(settings);
 fprintf("%d NMPC solvers created\nN-Min : %d\nN-max: %d\n\n",numel(settings.Nvals),min(settings.Nvals),max(settings.Nvals)); 
@@ -53,10 +53,10 @@ stepEpisode = @(action, Info) stepFcn(action, Info, solvers, curriculum);
 % Create environment
 env = rlFunctionEnv(obsInfo, actInfo, stepEpisode, resetEpisode);
 
-%%
-c.level = 3;
-[iobs, info] = resetFcn(c)
-simdata = info.simdata;
+
+
+
+
 
 %% LOCAL FUNCTIONS
 
@@ -86,7 +86,7 @@ function simdata = initSimdata(map)
     simdata.numSteps = 0;
     simdata.states = [0 , 0 , deg2rad(0.45) , 0 , 0 ]';
     simdata.average_mpc_time = 0;   % HARDCODED value!
-    simdata.usafe = 
+    simdata.end_current_time = 0.00;
 end
 
 %% STEP FUNCTION
@@ -94,36 +94,43 @@ function [nextObs, reward, isDone, Info] = stepFcn(action, Info, solvers, curric
     
 
     solverIdx = Normalizer.denormalize01(action(13),1,numel(solvers.solverN));     % get solver index from rl-action
+    solverIdx = round(solverIdx);
     nmpcSolver = solvers.solverStack(solverIdx);                        % select solver for this step from action
     
-    simSettings = initStep(action,Info,solvers);
+    [simSettings, lastActions] = initStep(action,Info.simdata,nmpcSolver.settings,Info.map);
     
     
-
+    % run the simulation step
+    Info.simdata = simulationStepDyn(nmpcSolver, simSettings);
     
     % Update logged signals
-    Info.simdata = simData;
-
-    isDone = simdata.endAtTarget || simdata.endEpTimeout || simdata.endHitObs;
+    
+    isDone = Info.simdata.endAtTarget || Info.simdata.endEpTimeout || Info.simdata.endHitObs;
     
     % Check termination and update curriculum
     if isDone
         curriculum.episodeCount = curriculum.episodeCount + 1;
-        updateCurriculum(curriculum); % Your curriculum update logic
     end
     
-    % Generate next observation
+    % Get observations for this step
     nextObs = getObservations(Info.simdata);
-    reward = calculateReward(simData);
-    isDone = checkTermination(simData);
+
+    % Calculate reward value for this step
+    rw = getStepReward(Info.simdata, lastActions);
+    reward = rw.reward;   
+
+
 end
 
 
-function [simSettings lastActions] = initStep(action,simdata,solverSettings,map)
+function [simSettings, lastActions] = initStep(action,simdata,solverSettings,map)
     
     epStepTime = 5; % seconds per episode step
     epMaxTime = 150; % seconds per episode (timeout)
     
+    simSettings.normalisedActions = true;               % enable normalised actions flag
+    simSettings.realCbfMin  = [0.1 0.01];               % [k1 kr] min real values
+    simSettings.realCbfMax  = [100 2.0 ];               % [k1 kr] max real values
     simSettings.cbfParms = reshape(action(1:12) ,6,2 );     % cbf actions into array
     simSettings.N = solverSettings.N;
     simSettings.DT = solverSettings.DT;
@@ -137,7 +144,7 @@ function [simSettings lastActions] = initStep(action,simdata,solverSettings,map)
     simSettings.target = [ map.targetPos , deg2rad(45) , 0, 0 ]';
     simSettings.currentTime = simdata.end_current_time;
     simSettings.mpcIter = simdata.mpcIter;
-    simSettings.cLevel = env.cLevel;
+    simSettings.cLevel = map.cLevel;
     if simSettings.mpcIter == 0
         simSettings.ctrlHistory = NaN(simSettings.maxEpSteps,2);
         simSettings.ssHistory = NaN(simSettings.maxEpSteps,1);
@@ -146,6 +153,8 @@ function [simSettings lastActions] = initStep(action,simdata,solverSettings,map)
         simSettings.simTimeHistory = zeros(simSettings.maxEpSteps,1);
         simSettings.controlHorizon = zeros(simSettings.N,2);
         simSettings.X0 = repmat(simSettings.currentState,1,simSettings.N+1)';
+        lastActions.N = action(13);
+        lastActions.cbf = simSettings.cbfParms;
     else
         simSettings.ctrlHistory = simdata.usafe;
         simSettings.ssHistory = simdata.sep;
@@ -154,6 +163,9 @@ function [simSettings lastActions] = initStep(action,simdata,solverSettings,map)
         [simSettings.X0, simSettings.controlHorizon] = resizeX0newN(simdata.end_X0,...
                                                                     simSettings.N,...
                                                                     simdata.end_control_horizon); % reshape mpc arrays for new horizon
+    
+        lastActions.N = simdata.Naction;
+        lastActions.cbf = simSettings.cbfParms;
     end
 
 end
