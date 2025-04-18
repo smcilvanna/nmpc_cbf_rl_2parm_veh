@@ -33,6 +33,8 @@ solvers = createSolversMultiObs(settings);
 fprintf("%d NMPC solvers created\nN-Min : %d\nN-max: %d\n\n",numel(settings.Nvals),min(settings.Nvals),max(settings.Nvals)); 
 clearvars settings; 
 
+%% load solvers
+load("temp_data/10_10_100_solvers.mat","solvers");
 %% Training environment
 
 % Create curriculum handle object
@@ -143,6 +145,12 @@ trainOpts = rlTrainingOptions(...
     'Plots', 'training-progress');
 
 disp("Training Options Set")
+
+%% TRAIN
+disp(">>> TRAINING START <<<")
+trainID = "1-1"; verID = "v1"; fname = "train_multiObs_td3_" + verID + "_" + trainID + ".mat";
+trainingStats = train(agent, env, trainOpts);
+save(fname);
 
 %% LOCAL FUNCTIONS
 
