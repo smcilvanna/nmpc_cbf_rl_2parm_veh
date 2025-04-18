@@ -54,11 +54,9 @@ stepEpisode = @(action, Info) stepFcn(action, Info, solvers, curriculum);
 env = rlFunctionEnv(obsInfo, actInfo, stepEpisode, resetEpisode);
 
 %%
+% c.level = 3;
+% resetFcn(c)
 
-    map = generateCurriculumEnvironment(3, false);   % generate random environment
-    simdata = initSimdata(map);                                 % create simdata for random environment
-    InitialObservation = getObservations(simdata);              % get the intitial observations
-    Info = struct('map',map,'simdata',simdata);
 
 %% LOCAL FUNCTIONS
 
@@ -100,12 +98,14 @@ function simdata = initSimdata(map)
     simdata.numSteps = 1;
     simdata.states = [0 , 0 , deg2rad(0.45) , 0 , 0 ]';
     simdata.average_mpc_time = 0;   % HARDCODED value!
+
+    
 end
 
 %%
 function [nextObs, reward, isDone, Info] = stepFcn(action, Info, solvers, curriculum)
     
-    simSettings = initStep(action,solvers);
+    simSettings = initStep(action,Info,solvers);
     
 
     [newState, simData] = runMPCStep(Info.simdata, action);
@@ -126,9 +126,9 @@ function [nextObs, reward, isDone, Info] = stepFcn(action, Info, solvers, curric
 end
 
 
-function [simSettings nmpcSolver lastActions] = initStep(action,solvers)
+function [simSettings nmpcSolver lastActions] = initStep(action,Info,solvers)
     
-    stepTime = 5; % seconds : how long the episode step runs for
+
     simSettings.solverIdx = Normalizer.denormalize01(action(13),1,numel(nSet));     % get solver index from rl-action
     nmpcSolver = solvers.solverStack(simSettings.solverIdx);                        % return solver struct for rl-action N
     simSettings = initialSimSettings(nmpcSolver,map);   % local function to initalise settings for step sim
